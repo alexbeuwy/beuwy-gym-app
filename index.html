@@ -318,24 +318,24 @@
       <div style="font-size:13px;color:var(--muted)">KI generiert deinen personalisierten Plan in Sekunden</div>
     </div>
     <div class="cx" style="display:flex;flex-direction:column;gap:14px">
-      <div class="ig"><label class="label">Gewicht (kg)</label><input type="number" class="ifield" id="v-w" placeholder="z.B. 62" value="62"></div>
+      <div class="ig"><label class="label">Gewicht (kg)</label><input type="number" class="ifield" id="v-w" placeholder="z.B. 56" value="56"></div>
       <div class="ig"><label class="label">Fitnesslevel</label>
         <select class="ifield" id="v-l">
-          <option value="beginner">Einsteigerin (unter 1 Jahr)</option>
-          <option value="intermediate" selected>Mittelstufe (1–3 Jahre)</option>
+          <option value="beginner" selected>Einsteigerin (unter 1 Jahr)</option>
+          <option value="intermediate">Mittelstufe (1–3 Jahre)</option>
           <option value="advanced">Fortgeschritten (3+ Jahre)</option>
         </select>
       </div>
       <div class="ig"><label class="label">Hauptziel</label>
         <select class="ifield" id="v-g">
-          <option value="toning">Straffen & Definieren</option>
-          <option value="strength" selected>Kraft aufbauen</option>
+          <option value="toning" selected>Straffen & Definieren</option>
+          <option value="strength">Kraft aufbauen</option>
           <option value="muscle">Muskelaufbau (Hypertrophie)</option>
           <option value="general">Allgemeine Fitness</option>
         </select>
       </div>
       <div class="ig"><label class="label">Gym-Tage pro Woche</label>
-        <select class="ifield" id="v-d"><option value="2">2×/Woche</option><option value="3" selected>3×/Woche</option><option value="4">4×/Woche</option></select>
+        <select class="ifield" id="v-d"><option value="2" selected>2×/Woche</option><option value="3">3×/Woche</option><option value="4">4×/Woche</option></select>
       </div>
       <div class="ig"><label class="label">Verletzungen / Einschränkungen</label><input type="text" class="ifield" id="v-i" placeholder="z.B. Knieprobleme — oder: keine"></div>
       <div class="ig"><label class="label">Fokus-Körperbereiche</label><input type="text" class="ifield" id="v-f" placeholder="z.B. Po, Bauch, Arme — oder: Ganzkörper"></div>
@@ -768,7 +768,7 @@ function navTo(tab) {
 
 // ── USER SELECT ────────────────────────────────────────────────
 async function selectUser(u) {
-  if(u==='vicky'&&!ls.get('vicky_plan',null)&&typeof VICKY_PLAN==='undefined'){showScreen('vicky');return;}
+  if(u==='vicky'&&!ls.get('vicky_plan',null)){showScreen('vicky');return;}
   state.user=u;
   if(hasSb()){
     setSyncDots('syncing');
@@ -1087,6 +1087,8 @@ function finishWorkout() {
   if(hasSb())sbSaveEntry(state.user,today(),log[today()]);
   renderFeedback();showScreen('feedback');
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  // KI-Analyse automatisch starten
+  setTimeout(()=>runAI(),500);
 }
 
 // ── FEEDBACK ───────────────────────────────────────────────────
@@ -1390,10 +1392,10 @@ async function genVickyPlan() {
     f=document.getElementById('v-f').value||'Ganzkörper',h=document.getElementById('v-h').value||'nicht angegeben';
   const btn=document.getElementById('vicky-gen');
   btn.innerHTML=`<div class="spinner"></div> KI erstellt Plan...`;btn.disabled=true;
-  const sys=`Du bist ein professioneller Kraftsport-Coach. Erstelle einen Trainingsplan. Antworte NUR mit validem JSON (keine Backticks). Format:
+  const sys=`Du bist ein professioneller Kraftsport-Coach für Frauen. Erstelle einen Trainingsplan. WICHTIG: Beachte das Fitnesslevel, Verletzungen und den Fokus der Athletin genau! Bei Anfängerinnen: Ganzkörper-Feeling mit Compound-Übungen, keine isolierten Splits. Maschinen bevorzugen. Realistische, niedrige Startgewichte. Bei Fokus auf Bauch/Beine/Po: Diese Bereiche priorisieren aber trotzdem Oberkörper einbauen. Antworte NUR mit validem JSON (keine Backticks). Format:
 {"name":"Vicky","weight":number,"profile":{"weight":number,"goal":"string","injuries":"string","gymDays":number},"workouts":[{"id":"string","name":"string","label":"A|B|C|D","subtitle":"string","color":"#hex","colorLight":"rgba(...)","exercises":[{"id":"string_snake","name":"string","equipment":"string","sets":number,"reps":number,"weight":number,"notes":"string"}]}]}`;
   const msg=`${w}kg · ${h}cm · ${l} · Ziel: ${g} · ${d}x/Woche · Fokus: ${f} · Einschränkungen: ${i}
-Regeln: ${d} Blöcke, 5-7 Übungen, dt. Namen, realistische Gewichte für ${l}. Colors: A=#8B5CF6/rgba(139,92,246,.14) B=#10B981/rgba(16,185,129,.14) C=#38BDF8/rgba(56,189,248,.14) D=#F59E0B/rgba(245,158,11,.14)`;
+Regeln: ${d} Trainingsblöcke (bei 2x Ganzkörper A+B, bei 3x Ganzkörper mit Schwerpunkten), 5-7 Übungen pro Block, deutsche Übungsnamen, realistische Gewichte für ${l}, bevorzuge Maschinen und Kabelzug für Anfängerinnen. Letztes Exercise pro Block: "4×2 Bauch-Programm" mit id "v_bauch_X" (equipment:"Matte · 4 Blöcke à 2 Übungen", sets:4, reps:2, weight:null). Colors: A=#8B5CF6/rgba(139,92,246,.14) B=#10B981/rgba(16,185,129,.14) C=#38BDF8/rgba(56,189,248,.14) D=#F59E0B/rgba(245,158,11,.14)`;
   try {
     const r=await fetch(`${SB.url}/functions/v1/ai-coach`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({max_tokens:2500,system:sys,messages:[{role:'user',content:msg}]})});
     const data=await r.json();const raw=data.content[0].text.replace(/```json|```/g,'').trim();const p=JSON.parse(raw);
