@@ -199,7 +199,7 @@
       <div style="display:flex;align-items:center;gap:10px">
         <div class="streak" id="streak-el">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 2 7 8 7 12a5 5 0 0 0 10 0C17 8 12 2 12 2z"/></svg>
-          <span id="streak-n">0 Tage</span>
+          <span id="streak-n">0 🔥</span>
         </div>
         <button class="btn btn-g" onclick="showScreen('users')" style="padding:8px;border-radius:9px">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -223,15 +223,14 @@
           <div style="font-size:22px;font-weight:800" id="s-month">0</div>
           <div style="font-size:11px;color:var(--muted)">Einheiten</div>
         </div>
-        <div class="sc">
-          <div class="label" style="margin-bottom:4px">Nächstes</div>
-          <div style="font-size:16px;font-weight:800" id="s-next">—</div>
-          <div style="font-size:11px;color:var(--muted)" id="s-nsub">—</div>
+        <div class="sc" id="s-next-box">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Nächstes</div>
+          <div style="font-size:13px;font-weight:700">—</div>
         </div>
-        <div class="sc" style="display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer" onclick="openSbConfig()">
-          <div class="sync-dot" id="dash-sync-dot"></div>
-          <div style="font-size:10px;font-weight:600;color:var(--muted);margin-top:5px;text-align:center" id="dash-sync-label">Offline</div>
-        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;cursor:pointer;padding:0 2px" onclick="openSbConfig()">
+        <div class="sync-dot" id="dash-sync-dot"></div>
+        <div style="font-size:10px;font-weight:600;color:var(--muted)" id="dash-sync-label">Offline</div>
       </div>
       <div class="label" style="margin-bottom:10px">Heute trainieren</div>
       <div style="display:flex;gap:8px;margin-bottom:16px" id="wkt-btns"></div>
@@ -786,27 +785,32 @@ function loadDashboard() {
   const gr=h<12?'Guten Morgen':h<17?'Guten Tag':'Guten Abend';
   document.getElementById('dash-gr').textContent=gr;
   document.getElementById('dash-name').textContent=plan.name||state.user;
-  const streakDays=calcStreak(state.user);
-  const streakWeeks=Math.floor(streakDays/7);
-  let flames='🔥';if(streakWeeks>=4)flames='🔥🔥';if(streakWeeks>=8)flames='🔥🔥🔥';
-  document.getElementById('streak-n').textContent=streakDays+' Tage '+flames;
+  const activeWeeks=calcActiveWeeks(state.user);
+  let flames='🔥';if(activeWeeks>=4)flames='🔥🔥';if(activeWeeks>=8)flames='🔥🔥🔥';
+  document.getElementById('streak-n').textContent=activeWeeks+' '+flames;
   const streakEl=document.getElementById('streak-el');
-  if(streakWeeks>4)streakEl.classList.add('hot');else streakEl.classList.remove('hot');
+  if(activeWeeks>4)streakEl.classList.add('hot');else streakEl.classList.remove('hot');
   if(!hasSb())document.getElementById('sb-banner').classList.add('show');
   renderWeekStrip();renderTodayCard(plan);renderStats(plan);renderWktBtns(plan);
   if(hasSb())setSyncDots('synced');
 }
 
-function calcStreak(u) {
+function calcActiveWeeks(u) {
   const log=getLog(u);
-  const done=Object.entries(log).filter(([,e])=>e.completed).map(([d])=>d).sort().reverse();
+  const done=Object.entries(log).filter(([,e])=>e.completed).map(([d])=>new Date(d+'T12:00:00'));
   if(!done.length)return 0;
-  let streak=0,check=new Date();check.setHours(0,0,0,0);
-  for(const d of done){
-    const ld=new Date(d+'T12:00:00');ld.setHours(0,0,0,0);
-    if((check-ld)/86400000<=1){streak++;check=ld;}else break;
+  // Zähle konsekutive Wochen mit mindestens 1 Training (rückwärts ab jetzt)
+  const now=new Date();
+  function isoWeek(d){const t=new Date(d);t.setHours(0,0,0,0);t.setDate(t.getDate()+3-(t.getDay()+6)%7*1);const y=new Date(t.getFullYear(),0,4);return Math.round(((t-y)/86400000-3+(y.getDay()+6)%7)/7)+1;}
+  function weekKey(d){const t=new Date(d);t.setDate(t.getDate()+3-(t.getDay()+6)%7);return t.getFullYear()+'-W'+String(isoWeek(d)).padStart(2,'0');}
+  const activeSet=new Set(done.map(d=>weekKey(d)));
+  let weeks=0;const check=new Date(now);
+  while(true){
+    const wk=weekKey(check);
+    if(activeSet.has(wk)){weeks++;check.setDate(check.getDate()-7);}
+    else break;
   }
-  return streak;
+  return weeks;
 }
 
 function renderWeekStrip() {
@@ -854,17 +858,35 @@ function renderTodayCard(plan) {
 
 function renderStats(plan) {
   const log=getLog(state.user);const mo=new Date().toISOString().slice(0,7);
-  const monthCount=Object.entries(log).filter(([d,e])=>d.startsWith(mo)&&e.completed).length;
-  const target=plan.profile?.gymDays ? plan.profile.gymDays*4 : 8;
-  const filled=monthCount;
+  const filled=Object.entries(log).filter(([d,e])=>d.startsWith(mo)&&e.completed).length;
+  // 8 Basis-Blöcke immer grau, darüber Bonus
   let blocks='';
-  for(let i=0;i<Math.max(target,8);i++){
-    blocks+=`<div style="width:20px;height:20px;border-radius:5px;background:${i<filled?'var(--emerald)':'rgba(255,255,255,.06)'};border:1px solid ${i<filled?'var(--emerald)':'var(--border)'};transition:all .3s"></div>`;
+  const total=Math.max(8,filled);
+  for(let i=0;i<total;i++){
+    const isBonus=i>=8;
+    const isDone=i<filled;
+    const bg=isDone?(isBonus?'var(--purple)':'var(--emerald)'):'rgba(255,255,255,.06)';
+    const border=isDone?(isBonus?'var(--purple)':'var(--emerald)'):'var(--border)';
+    blocks+=`<div style="width:20px;height:20px;border-radius:5px;background:${bg};border:1px solid ${border};transition:all .3s"></div>`;
   }
-  document.getElementById('s-month').innerHTML=`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">${blocks}</div><span style="font-size:14px;font-weight:700">${filled}</span>`;
-  const done=Object.values(log).filter(e=>e.completed).length;const next=plan.workouts[done%plan.workouts.length];
-  document.getElementById('s-next').textContent=`${next.name} ${next.label}`;
-  document.getElementById('s-nsub').textContent=next.subtitle.split('·')[0].trim();
+  document.getElementById('s-month').innerHTML=`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">${blocks}</div><span style="font-size:14px;font-weight:700">${filled}${filled>8?' 🎯':''}</span>`;
+  // Letztes Training + Nächstes Training für rechte Box
+  const allDone=Object.entries(log).filter(([,e])=>e.completed).sort((a,b)=>b[0].localeCompare(a[0]));
+  const doneCount=allDone.length;
+  const next=plan.workouts[doneCount%plan.workouts.length];
+  const last=allDone[0];
+  const lastW=last?plan.workouts[last[1].workoutIndex]:null;
+  let rightHtml='';
+  if(lastW){
+    const lastSets=Object.values(last[1].sets||{}).reduce((s,sets)=>s+sets.filter(s=>s.done).length,0);
+    rightHtml+=`<div style="font-size:10px;color:var(--muted);margin-bottom:3px">Letztes Training</div>`;
+    rightHtml+=`<div style="font-size:13px;font-weight:700;margin-bottom:2px">${lastW.name} ${lastW.label}</div>`;
+    rightHtml+=`<div style="font-size:10px;color:var(--sec);margin-bottom:8px">${fmtDate(last[0])} · ${lastSets} Sätze</div>`;
+  }
+  rightHtml+=`<div style="font-size:10px;color:var(--muted);margin-bottom:3px">Nächstes</div>`;
+  rightHtml+=`<div style="font-size:13px;font-weight:700;color:${next.color}">${next.name} ${next.label}</div>`;
+  rightHtml+=`<div style="font-size:10px;color:var(--sec)">${next.subtitle.split('·')[0].trim()}</div>`;
+  document.getElementById('s-next-box').innerHTML=rightHtml;
 }
 
 function renderWktBtns(plan) {
@@ -1312,7 +1334,7 @@ function renderHistory() {
     const e=log[d];const w=plan?.workouts?.[e.workoutIndex];
     const done=Object.values(e.sets||{}).reduce((s,sets)=>s+sets.filter(s=>s.done).length,0);
     const mChart=w?workoutMuscleChart(w):'';
-    return `<div class="card fi" style="margin-bottom:10px${w?';border-top:2px solid '+w.color+'40':''}">
+    return `<div class="card fi" style="margin-bottom:10px${w?';border-top:2px solid '+w.color+'40':''};cursor:pointer" onclick="showHistDetail('${d}')">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="display:flex;gap:6px;align-items:center">
           <span class="badge ${e.completed?'be':'ba'}">${e.completed?'Abgeschlossen':'Offen'}</span>
@@ -1324,8 +1346,101 @@ function renderHistory() {
       <div style="font-size:12px;color:var(--muted);margin-bottom:${mChart?'10px':'0'}">${done} Sätze${w?' · '+w.subtitle:''}</div>
       ${mChart?`<div style="margin-bottom:4px">${mChart}</div>`:''}
       ${e.analysis?.encouragement?`<div style="font-size:11px;font-style:italic;color:var(--amber);margin-top:6px">"${e.analysis.encouragement}"</div>`:''}
+      <div style="text-align:right;margin-top:6px"><span style="font-size:11px;color:var(--sec)">Details ansehen →</span></div>
     </div>`;
   }).join('');
+}
+
+function showHistDetail(date) {
+  const plan=getPlan(state.user);const log=getLog(state.user);const e=log[date];
+  if(!e)return;
+  const w=plan?.workouts?.[e.workoutIndex];
+  const el=document.getElementById('hist-list');
+  let html=`<button class="btn btn-g" style="margin-bottom:12px;padding:8px;border-radius:9px" onclick="renderHistory()">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Zurück
+  </button>`;
+  html+=`<div class="card" style="margin-bottom:14px${w?';border-top:2px solid '+w.color:''}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div>
+        <div class="heading" style="font-size:20px">${fmtDate(date)}</div>
+        <div style="font-size:12px;color:var(--muted)">${w?w.name+' '+w.label+' — '+w.subtitle:''} · ${e.duration||0} Min</div>
+      </div>
+      <span class="badge ${e.completed?'be':'ba'}">${e.completed?'Erledigt':'Offen'}</span>
+    </div>`;
+  // Übungen mit Sätzen
+  if(w&&e.sets){
+    w.exercises.forEach(ex=>{
+      const sets=e.sets[ex.id];if(!sets)return;
+      const doneSets=sets.filter(s=>s.done).length;
+      html+=`<div style="padding:10px 0;border-top:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:14px;font-weight:700">${ex.name}</div>
+          <span class="badge ${doneSets===sets.length?'be':'ba'}">${doneSets}/${sets.length}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:30px 1fr 1fr 30px;gap:4px;font-size:12px;color:var(--muted);margin-bottom:4px">
+          <div>#</div><div>Reps</div><div>Gewicht</div><div></div>
+        </div>`;
+      sets.forEach((s,i)=>{
+        html+=`<div style="display:grid;grid-template-columns:30px 1fr 1fr 30px;gap:4px;font-size:13px;padding:3px 0;border-top:1px solid var(--border)" id="hist-set-${ex.id}-${i}">
+          <div style="font-size:11px;color:var(--muted);font-weight:700">${i+1}</div>
+          <div class="hist-val" data-field="reps" data-exid="${ex.id}" data-si="${i}">${s.reps||'—'}</div>
+          <div class="hist-val" data-field="weight" data-exid="${ex.id}" data-si="${i}">${s.weight?s.weight+' kg':'BW'}</div>
+          <div>${s.done?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'}</div>
+        </div>`;
+      });
+      html+=`</div>`;
+    });
+  }
+  // KI-Analyse falls vorhanden
+  if(e.analysis){
+    html+=`<div style="padding:10px 0;border-top:1px solid var(--border)">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">KI-Analyse</div>
+      <div style="font-size:13px;line-height:1.6">${e.analysis.summary||''}</div>
+      ${e.analysis.encouragement?`<div style="font-size:12px;font-style:italic;color:var(--amber);margin-top:6px">"${e.analysis.encouragement}"</div>`:''}
+    </div>`;
+  }
+  html+=`</div>`;
+  // Bearbeiten-Button
+  html+=`<button class="btn btn-s btn-full" style="margin-bottom:20px" onclick="editHistEntry('${date}')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Training bearbeiten
+  </button>`;
+  el.innerHTML=html;
+}
+
+function editHistEntry(date) {
+  const plan=getPlan(state.user);const log=getLog(state.user);const e=log[date];
+  if(!e)return;const w=plan?.workouts?.[e.workoutIndex];if(!w)return;
+  // Sätze editierbar machen
+  document.querySelectorAll('.hist-val').forEach(el=>{
+    const exId=el.dataset.exid,si=parseInt(el.dataset.si),field=el.dataset.field;
+    const val=e.sets[exId]?.[si]?.[field]||'';
+    el.innerHTML=`<input class="wi" style="width:50px;font-size:12px;padding:3px" value="${val||''}"
+      onchange="updateHistSet('${date}','${exId}',${si},'${field}',this.value)">`;
+  });
+  // Button ändern
+  const btns=document.querySelectorAll('.btn-s.btn-full');
+  const lastBtn=btns[btns.length-1];
+  if(lastBtn)lastBtn.outerHTML=`<button class="btn btn-e btn-full" style="margin-bottom:20px" onclick="saveHistEntry('${date}')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+    Änderungen speichern
+  </button>`;
+}
+
+function updateHistSet(date,exId,si,field,val) {
+  const log=getLog(state.user);
+  if(log[date]&&log[date].sets[exId]&&log[date].sets[exId][si]){
+    log[date].sets[exId][si][field]=field==='reps'?parseInt(val)||0:parseFloat(val)||0;
+    saveLog(state.user,log);
+  }
+}
+
+function saveHistEntry(date) {
+  const log=getLog(state.user);
+  saveLog(state.user,log);
+  if(hasSb())sbSaveEntry(state.user,date,log[date]);
+  showToast('Training aktualisiert');
+  showHistDetail(date);
 }
 
 // ── PLAN VIEW ──────────────────────────────────────────────────
