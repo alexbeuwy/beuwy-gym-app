@@ -1374,7 +1374,9 @@ function rate(exId,r) {
   });
 }
 
+let _aiRunning=false;
 async function runAI() {
+  if(_aiRunning)return;_aiRunning=true;
   const plan=getPlan(state.user);const w=plan.workouts[state.wIdx];
   const btn=document.getElementById('ai-btn');const res=document.getElementById('ai-res');
   btn.innerHTML=`<div class="spinner"></div> KI analysiert...`;btn.disabled=true;res.style.display='none';
@@ -1420,7 +1422,7 @@ Daten: ${JSON.stringify(exData)}`;
     </div>${renderCoachQuote(exData)}`;
     btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Plan aktualisiert`;
     btn.className='btn btn-s btn-full';btn.style.marginBottom='12px';
-    showToast('Training gespeichert · Gewichte aktualisiert');loadDashboard();
+    showToast('Training gespeichert · Gewichte aktualisiert');loadDashboard();_aiRunning=false;
   } catch(err) {
     console.error(err);
     // Lokaler Fallback: Gewichte basierend auf Rating anpassen
@@ -1451,7 +1453,7 @@ Daten: ${JSON.stringify(exData)}`;
     </div>${renderCoachQuote(exData)}`;
     btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Gespeichert`;
     btn.className='btn btn-s btn-full';btn.style.marginBottom='12px';
-    showToast('Training gespeichert · Gewichte lokal angepasst');loadDashboard();
+    showToast('Training gespeichert · Gewichte lokal angepasst');loadDashboard();_aiRunning=false;
   }
 }
 
@@ -1715,7 +1717,9 @@ function renderPlan() {
 }
 
 // ── VICKY PLAN ─────────────────────────────────────────────────
+let _vickyGenRunning=false;
 async function genVickyPlan() {
+  if(_vickyGenRunning)return;_vickyGenRunning=true;
   const w=document.getElementById('v-w').value,l=document.getElementById('v-l').value,g=document.getElementById('v-g').value,
     d=document.getElementById('v-d').value,i=document.getElementById('v-i').value||'keine',
     f=document.getElementById('v-f').value||'Ganzkörper',h=document.getElementById('v-h').value||'nicht angegeben';
@@ -1731,8 +1735,8 @@ Regeln: ${d} Trainingsblöcke (bei 2x Ganzkörper A+B, bei 3x Ganzkörper mit Sc
     ls.set('vicky_plan',p);ls.set('vicky_profile',{w,l,g,d,i,f,h});
     if(hasSb())sbSavePlan('vicky',p,{});
     updateVickyCard(p);showToast("Vicky's Plan erstellt!");
-    state.user='vicky';loadDashboard();navTo('dashboard');
-  } catch(err){console.error(err);btn.innerHTML='Fehler — erneut versuchen';btn.disabled=false;showToast('Fehler beim Generieren');}
+    state.user='vicky';loadDashboard();navTo('dashboard');_vickyGenRunning=false;
+  } catch(err){console.error(err);btn.innerHTML='Fehler — erneut versuchen';btn.disabled=false;showToast('Fehler beim Generieren');_vickyGenRunning=false;}
 }
 
 function updateVickyCard(plan) {
