@@ -117,6 +117,18 @@
     #sb-config-overlay.open{display:flex}
     .sb-sheet{width:100%;max-width:480px;background:#141418;border-radius:22px 22px 0 0;border-top:1px solid var(--border);padding:20px 20px max(20px,env(safe-area-inset-bottom));max-height:90dvh;overflow-y:auto}
     .sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:999px;margin:0 auto 18px}
+    /* Sticky progress bar */
+    #workout-sticky{position:sticky;top:0;z-index:50;background:var(--bg);padding:8px 18px 6px;border-bottom:1px solid var(--border);margin:0 -18px}
+    /* Confetti burst */
+    @keyframes confettiBurst{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(0)}}
+    .confetti-dot{position:absolute;width:6px;height:6px;border-radius:50%;animation:confettiBurst .6s ease-out forwards;pointer-events:none;z-index:999}
+    /* Streak flame pulse */
+    .streak.hot{animation:flamePulse 1.5s ease infinite}
+    @keyframes flamePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+    /* Reps input */
+    .ri{width:48px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:7px;padding:6px 4px;color:var(--text);font-family:inherit;font-size:13px;font-weight:700;text-align:center;outline:none;transition:border-color .2s}
+    .ri:focus{border-color:var(--emerald)}
+    .ri:disabled{opacity:.3}
   </style>
 </head>
 <body>
@@ -165,9 +177,9 @@
       <div class="uc fi fi2" id="vicky-sel" onclick="selectUser('vicky')">
         <div class="av" style="background:rgba(16,185,129,.14);color:var(--emerald)">V</div>
         <div class="subheading" style="margin-bottom:4px">Vicky</div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:14px" id="vicky-sub">Noch kein Plan — jetzt KI-Plan erstellen</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px" id="vicky-sub">Ganzkörper A · Ganzkörper B</div>
         <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap" id="vicky-bdg">
-          <span class="badge be">KI-generiert</span>
+          <span class="badge be">2×/Woche</span><span class="badge bp">Ganzkörper</span><span class="badge ba">56 kg</span>
         </div>
       </div>
       <button class="btn btn-s" style="margin-top:4px" onclick="openSbConfig()">
@@ -230,16 +242,18 @@
   <div id="screen-workout" class="screen">
     <div class="header" style="padding-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <button class="btn btn-g" onclick="showScreen('dashboard');clearInterval(state.ti)" style="padding:8px;border-radius:9px">
+        <button class="btn btn-g" onclick="confirmLeaveWorkout()" style="padding:8px;border-radius:9px">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         </button>
         <div class="subheading" id="wt"></div>
-        <div style="font-size:13px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums" id="wt-timer">00:00</div>
+        <div style="font-size:13px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;cursor:pointer" id="wt-timer" onclick="toggleTimer()">00:00</div>
       </div>
-      <div class="pt" style="margin-bottom:8px"><div class="pf" id="wp" style="width:0%"></div></div>
-      <div style="display:flex;justify-content:space-between">
-        <div style="font-size:11px;color:var(--muted)" id="wt-prog">0 / 0 Sätze</div>
-        <div style="font-size:11px;color:var(--muted)" id="wt-sub"></div>
+      <div id="workout-sticky">
+        <div class="pt" style="margin-bottom:8px"><div class="pf" id="wp" style="width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between">
+          <div style="font-size:11px;color:var(--muted)" id="wt-prog">0 / 0 Sätze</div>
+          <div style="font-size:11px;color:var(--muted)" id="wt-sub"></div>
+        </div>
       </div>
     </div>
     <div class="cx" id="ex-list"></div>
@@ -439,6 +453,7 @@ const EM = {
   lateral:   { primary:['shoulders'], secondary:[],                        equip:'cable' },
   pushdown:  { primary:['triceps'], secondary:[],                          equip:'cable' },
   plank_a:   { primary:['core'], secondary:[],                             equip:'mat' },
+  bauch_4x2: { primary:['core'], secondary:[],                             equip:'mat' },
   // Legs
   legpress:  { primary:['quads'], secondary:['glutes'],                    equip:'machine' },
   bulgarian: { primary:['quads','glutes'], secondary:['hamstrings'],       equip:'dumbbell' },
@@ -454,18 +469,20 @@ const EM = {
   hammer:    { primary:['biceps','brachialis'], secondary:[],               equip:'dumbbell' },
   abrollout: { primary:['core'], secondary:['lats'],                        equip:'wheel' },
   // Vicky
-  v_latpull:    { primary:['lats'], secondary:['biceps'],                    equip:'cable' },
-  v_cablerow:   { primary:['back'], secondary:['biceps'],                    equip:'cable' },
-  v_shldr_press:{ primary:['shoulders'], secondary:['triceps'],              equip:'machine' },
-  v_facepull:   { primary:['rear_delts','traps'], secondary:[],             equip:'cable' },
-  v_forearm_a:  { primary:['brachialis'], secondary:[],                      equip:'dumbbell' },
-  v_forearm_b:  { primary:['brachialis'], secondary:[],                      equip:'dumbbell' },
-  v_plank:      { primary:['core'], secondary:[],                            equip:'mat' },
   v_legpress:   { primary:['quads'], secondary:['glutes'],                   equip:'machine' },
   v_hipthrust:  { primary:['glutes'], secondary:['hamstrings'],              equip:'barbell' },
+  v_latpull:    { primary:['lats'], secondary:['biceps'],                    equip:'cable' },
+  v_shldr_press:{ primary:['shoulders'], secondary:['triceps'],              equip:'machine' },
+  v_bizeps:     { primary:['biceps'], secondary:[],                          equip:'cable' },
+  v_trizeps:    { primary:['triceps'], secondary:[],                         equip:'cable' },
+  v_bauch_a:    { primary:['core'], secondary:[],                            equip:'mat' },
   v_legcurl:    { primary:['hamstrings'], secondary:[],                      equip:'machine' },
   v_abductor:   { primary:['glutes'], secondary:[],                          equip:'machine' },
-  v_crunch:     { primary:['core'], secondary:[],                            equip:'machine' }
+  v_cablerow:   { primary:['back'], secondary:['biceps'],                    equip:'cable' },
+  v_facepull:   { primary:['rear_delts','traps'], secondary:[],             equip:'cable' },
+  v_forearm:    { primary:['brachialis'], secondary:[],                      equip:'dumbbell' },
+  v_seitheben:  { primary:['shoulders'], secondary:[],                       equip:'cable' },
+  v_bauch_b:    { primary:['core'], secondary:[],                            equip:'mat' }
 };
 
 function getEquipIcon(equipKey, color='currentColor') {
@@ -522,12 +539,12 @@ const ALEX_PLAN = {
     { id:"push", name:"Push", label:"A", subtitle:"Brust · Schultern · Trizeps",
       color:"#8B5CF6", colorLight:"rgba(139,92,246,.14)",
       exercises:[
-        {id:"bench",   name:"Bankdrücken",       equipment:"Langhantel · Flachbank",      sets:4,reps:8, weight:80,   notes:"Schulterbreiter Griff · 2s ablassen · Schulterblätter in Bank pressen"},
-        {id:"ohp",     name:"Schulterdrücken",   equipment:"Langhantel · stehend",        sets:3,reps:10,weight:50,   notes:"Core anspannen · nicht ins Hohlkreuz · Blick geradeaus"},
-        {id:"incline", name:"Schrägbankdrücken", equipment:"Hanteln · 30° Bank",         sets:3,reps:12,weight:22.5, notes:"Pro Seite · volle Streckung · Ellenbogen ~75° zum Körper"},
-        {id:"lateral", name:"Seitheben",         equipment:"Kabel · oder Hanteln",        sets:3,reps:15,weight:8,    notes:"Ellenbogen minimal gebeugt · aus Schulter bewegen · nicht schwingen"},
+        {id:"bench",   name:"Bankdrücken",       equipment:"Langhantel · Flachbank",      sets:4,reps:8, weight:60,   notes:"Schulterbreiter Griff · 2s ablassen · Schulterblätter in Bank pressen"},
+        {id:"ohp",     name:"Schulterdrücken",   equipment:"Langhantel · stehend",        sets:3,reps:10,weight:30,   notes:"Core anspannen · nicht ins Hohlkreuz · Blick geradeaus"},
+        {id:"incline", name:"Schrägbankdrücken", equipment:"Hanteln · 30° Bank",         sets:3,reps:12,weight:15, notes:"Pro Seite · volle Streckung · Ellenbogen ~75° zum Körper"},
+        {id:"lateral", name:"Seitheben",         equipment:"Kabel · oder Hanteln",        sets:3,reps:15,weight:10,    notes:"Ellenbogen minimal gebeugt · aus Schulter bewegen · nicht schwingen"},
         {id:"pushdown",name:"Trizeps-Pushdown",  equipment:"Kabel · Seilgriff",           sets:3,reps:12,weight:25,   notes:"Ellenbogen am Körper fixiert · volle Streckung unten"},
-        {id:"plank_a", name:"Plank",             equipment:"Matte",                        sets:3,reps:null,weight:null,duration:45,notes:"45s halten · Körper gerade Linie · Hüfte nicht absinken lassen"}
+        {id:"bauch_4x2",name:"4×2 Bauch-Programm",equipment:"Matte · 4 Blöcke à 2 Übungen",sets:4,reps:2,weight:null,notes:"4 Blöcke mit je 2 Bauchübungen · 15s Pause zwischen Blöcken · eigenes Programm"}
       ]
     },
     { id:"legs", name:"Legs", label:"B", subtitle:"Beine · ACL-Rehab · Stabilität",
@@ -694,28 +711,30 @@ const ls = {
 
 const VICKY_PLAN = {
   name:"Vicky", weight:56,
-  profile:{weight:56,height:158,goal:"Straffen & Definieren",injuries:"Fußgelenk selten Schmerzen, schwache Unterarme, leichtes Lipödem",gymDays:2,level:"beginner"},
+  profile:{weight:56,height:158,goal:"Straffen & Definieren",injuries:"Fußgelenk selten, schwache Unterarme, leichtes Lipödem",gymDays:2,level:"beginner"},
   workouts:[
-    { id:"v_upper", name:"Oberkörper", label:"A", subtitle:"Rücken · Schultern · Unterarme · Core",
+    { id:"v_full_a", name:"Ganzkörper A", label:"A", subtitle:"Beine · Po · Rücken · Schultern · Arme · Bauch",
       color:"#8B5CF6", colorLight:"rgba(139,92,246,.14)",
       exercises:[
-        {id:"v_latpull",    name:"Latzug",              equipment:"Kabelturm · weiter Griff",    sets:3,reps:12,weight:20,  notes:"Schulterblätter nach unten ziehen · kontrolliert ablassen · Ellenbogen Richtung Hüfte"},
-        {id:"v_cablerow",   name:"Kabelrudern",         equipment:"Kabelturm · enger Griff",     sets:3,reps:12,weight:15,  notes:"Brust raus · Schulterblätter zusammen · kein Schwung · 1s halten"},
-        {id:"v_shldr_press",name:"Schulterdrücken",     equipment:"Maschine",                    sets:3,reps:12,weight:8,   notes:"Rücken am Polster · Ellenbogen nicht unter Schulter · kontrolliert"},
-        {id:"v_facepull",   name:"Face Pulls",          equipment:"Kabel · Seilgriff · Kopfhöhe",sets:3,reps:15,weight:7,   notes:"Haltungskorrektur · Außenrotation betonen · Schulterblätter aktiv"},
-        {id:"v_forearm_a",  name:"Unterarm-Curls",      equipment:"Kurzhanteln · Unterarmbank",  sets:3,reps:15,weight:4,   notes:"Handgelenk über Kante · langsam auf und ab · Griffkraft aufbauen"},
-        {id:"v_plank",      name:"Plank",               equipment:"Matte",                       sets:3,reps:null,weight:null,duration:30,notes:"30s halten · Körper gerade · Bauch aktiv · Hüfte nicht absinken"}
+        {id:"v_legpress",    name:"Beinpresse",          equipment:"Maschine",                    sets:3,reps:15,weight:50,  notes:"Füße schulterbreit · Knie nicht voll strecken · Lipödem-schonend"},
+        {id:"v_hipthrust",   name:"Hip Thrust",          equipment:"Langhantel · Bank",           sets:3,reps:15,weight:30,  notes:"Po oben maximal anspannen · 1s halten · Schulterblätter auf Bank"},
+        {id:"v_latpull",     name:"Latzug",              equipment:"Kabelturm · weiter Griff",    sets:3,reps:12,weight:20,  notes:"Schulterblätter nach unten · Ellenbogen Richtung Hüfte"},
+        {id:"v_shldr_press", name:"Schulterdrücken",     equipment:"Maschine",                    sets:3,reps:12,weight:8,   notes:"Rücken am Polster · kontrolliert drücken"},
+        {id:"v_bizeps",      name:"Bizeps-Curls",        equipment:"Kabelturm · SZ-Stange",       sets:3,reps:12,weight:7.5, notes:"Ellenbogen am Körper · nicht schwingen · volle Streckung"},
+        {id:"v_trizeps",     name:"Trizeps-Pushdown",    equipment:"Kabelturm · Seilgriff",       sets:3,reps:12,weight:10,  notes:"Ellenbogen fixiert · volle Streckung unten · 2s halten"},
+        {id:"v_bauch_a",     name:"4×2 Bauch-Programm",  equipment:"Matte · 4 Blöcke à 2 Übungen",sets:4,reps:2,weight:null, notes:"4 Blöcke mit je 2 Bauchübungen · 15s Pause zwischen Blöcken"}
       ]
     },
-    { id:"v_lower", name:"Unterkörper", label:"B", subtitle:"Beine · Po · Bauch · Unterarme",
+    { id:"v_full_b", name:"Ganzkörper B", label:"B", subtitle:"Beine · Po · Rücken · Schultern · Arme · Bauch",
       color:"#10B981", colorLight:"rgba(16,185,129,.14)",
       exercises:[
-        {id:"v_legpress",   name:"Beinpresse",          equipment:"Maschine",                    sets:3,reps:15,weight:50,  notes:"Füße schulterbreit hoch · Knie nicht voll strecken · Lipödem-schonend"},
-        {id:"v_hipthrust",  name:"Hip Thrust",          equipment:"Langhantel · Bank",           sets:3,reps:15,weight:30,  notes:"Schulterblätter auf Bankkante · Po oben maximal anspannen · 1s halten"},
-        {id:"v_legcurl",    name:"Beinbeuger liegend",  equipment:"Maschine",                    sets:3,reps:12,weight:15,  notes:"Hintere Oberschenkel · langsam ablassen · Hüfte am Polster"},
-        {id:"v_abductor",   name:"Abduktoren-Maschine", equipment:"Maschine",                    sets:3,reps:15,weight:20,  notes:"Po-Außenseite · oben 1s halten · kontrolliert zurück · kein Schwung"},
-        {id:"v_crunch",     name:"Crunch-Maschine",     equipment:"Maschine",                    sets:3,reps:15,weight:10,  notes:"Aus dem Bauch rollen · nicht mit Armen ziehen · Ausatmen beim Crunchen"},
-        {id:"v_forearm_b",  name:"Unterarm-Curls",      equipment:"Kurzhanteln · Unterarmbank",  sets:3,reps:15,weight:4,   notes:"Auch am Beintag Unterarme trainieren · Griffkraft braucht Frequenz"}
+        {id:"v_legcurl",     name:"Beinbeuger liegend",  equipment:"Maschine",                    sets:3,reps:12,weight:15,  notes:"Hintere Oberschenkel · langsam ablassen · Hüfte am Polster"},
+        {id:"v_abductor",    name:"Abduktoren-Maschine", equipment:"Maschine",                    sets:3,reps:15,weight:20,  notes:"Po-Außenseite · oben 1s halten · kein Schwung"},
+        {id:"v_cablerow",    name:"Kabelrudern",         equipment:"Kabelturm · enger Griff",     sets:3,reps:12,weight:15,  notes:"Schulterblätter zusammen · kein Schwung · 1s halten"},
+        {id:"v_facepull",    name:"Face Pulls",          equipment:"Kabel · Seilgriff · Kopfhöhe",sets:3,reps:15,weight:7,   notes:"Außenrotation · Schultern stärken · Haltung verbessern"},
+        {id:"v_forearm",     name:"Unterarm-Curls",      equipment:"Kurzhanteln · Unterarmbank",  sets:3,reps:15,weight:4,   notes:"Handgelenk über Kante · Griffkraft aufbauen"},
+        {id:"v_seitheben",   name:"Seitheben",           equipment:"Kabel · von unten",           sets:3,reps:15,weight:5,   notes:"Aus der Schulter heben · Ellenbogen leicht gebeugt"},
+        {id:"v_bauch_b",     name:"4×2 Bauch-Programm",  equipment:"Matte · 4 Blöcke à 2 Übungen",sets:4,reps:2,weight:null, notes:"4 Blöcke mit je 2 Bauchübungen · 15s Pause zwischen Blöcken"}
       ]
     }
   ]
@@ -730,7 +749,7 @@ function getCW(u,exId,fallback) { const h=ls.get(`w_${u}_${exId}`,null); return 
 function saveW(u,exId,w) { const h=ls.get(`w_${u}_${exId}`,[]);h.push(w);ls.set(`w_${u}_${exId}`,h); }
 
 // ── STATE ──────────────────────────────────────────────────────
-const state = { user:null, wIdx:null, sets:{}, startTime:null, ti:null, ratings:{}, actualW:{} };
+const state = { user:null, wIdx:null, sets:{}, startTime:null, ti:null, ratings:{}, actualW:{}, notes:{}, timerPaused:false, pauseOffset:0, pauseStart:0 };
 
 // ── NAVIGATION ─────────────────────────────────────────────────
 function showScreen(n) {
@@ -767,7 +786,12 @@ function loadDashboard() {
   const gr=h<12?'Guten Morgen':h<17?'Guten Tag':'Guten Abend';
   document.getElementById('dash-gr').textContent=gr;
   document.getElementById('dash-name').textContent=plan.name||state.user;
-  document.getElementById('streak-n').textContent=calcStreak(state.user)+' Tage';
+  const streakDays=calcStreak(state.user);
+  const streakWeeks=Math.floor(streakDays/7);
+  let flames='🔥';if(streakWeeks>=4)flames='🔥🔥';if(streakWeeks>=8)flames='🔥🔥🔥';
+  document.getElementById('streak-n').textContent=streakDays+' Tage '+flames;
+  const streakEl=document.getElementById('streak-el');
+  if(streakWeeks>4)streakEl.classList.add('hot');else streakEl.classList.remove('hot');
   if(!hasSb())document.getElementById('sb-banner').classList.add('show');
   renderWeekStrip();renderTodayCard(plan);renderStats(plan);renderWktBtns(plan);
   if(hasSb())setSyncDots('synced');
@@ -791,11 +815,12 @@ function renderWeekStrip() {
   for(let i=0;i<7;i++){
     const d=new Date(t);d.setDate(t.getDate()-dow+i);
     const ds=d.toISOString().split('T')[0];const isT=ds===today();const e=log[ds];
-    let cls='dc';if(isT)cls+=' today';else if(e?.completed)cls+=' done-gym';
+    let cls='dc';if(e?.completed)cls+=' done-gym';if(isT)cls+=' today';
+    const checkSvg=e?.completed?`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`:`<div style="width:5px;height:5px;border-radius:50%;background:transparent"></div>`;
     html+=`<div class="${cls}" style="min-width:38px">
       <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">${days[i]}</div>
       <div style="font-size:15px;font-weight:800">${d.getDate()}</div>
-      <div style="width:5px;height:5px;border-radius:50%;background:${e?.completed?'var(--emerald)':'transparent'}"></div>
+      ${checkSvg}
     </div>`;
   }
   document.getElementById('week-strip').innerHTML=html;
@@ -829,7 +854,14 @@ function renderTodayCard(plan) {
 
 function renderStats(plan) {
   const log=getLog(state.user);const mo=new Date().toISOString().slice(0,7);
-  document.getElementById('s-month').textContent=Object.entries(log).filter(([d,e])=>d.startsWith(mo)&&e.completed).length;
+  const monthCount=Object.entries(log).filter(([d,e])=>d.startsWith(mo)&&e.completed).length;
+  const target=plan.profile?.gymDays ? plan.profile.gymDays*4 : 8;
+  const filled=monthCount;
+  let blocks='';
+  for(let i=0;i<Math.max(target,8);i++){
+    blocks+=`<div style="width:20px;height:20px;border-radius:5px;background:${i<filled?'var(--emerald)':'rgba(255,255,255,.06)'};border:1px solid ${i<filled?'var(--emerald)':'var(--border)'};transition:all .3s"></div>`;
+  }
+  document.getElementById('s-month').innerHTML=`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">${blocks}</div><span style="font-size:14px;font-weight:700">${filled}</span>`;
   const done=Object.values(log).filter(e=>e.completed).length;const next=plan.workouts[done%plan.workouts.length];
   document.getElementById('s-next').textContent=`${next.name} ${next.label}`;
   document.getElementById('s-nsub').textContent=next.subtitle.split('·')[0].trim();
@@ -840,7 +872,13 @@ function renderWktBtns(plan) {
     <button class="btn btn-s" style="flex:1;flex-direction:column;gap:3px;padding:12px 6px;border-top:2px solid ${w.color}" onclick="startWkt(${i})">
       <div style="font-size:18px;font-weight:800;color:${w.color}">${w.label}</div>
       <div style="font-size:11px;color:var(--sec)">${w.name}</div>
-    </button>`).join('');
+    </button>`).join('')+`
+    <div style="width:100%;margin-top:8px">
+      <button class="btn btn-g btn-full" style="font-size:12px" onclick="backlogWorkout()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/></svg>
+        Training nachtragen
+      </button>
+    </div>`;
 }
 
 // ── WORKOUT ────────────────────────────────────────────────────
@@ -852,7 +890,8 @@ function startTodayWkt() {
 
 function startWkt(idx) {
   const plan=getPlan(state.user);const w=plan.workouts[idx];
-  state.wIdx=idx;state.sets={};state.ratings={};state.actualW={};
+  state.wIdx=idx;state.sets={};state.ratings={};state.actualW={};state.notes={};
+  state.timerPaused=false;state.pauseOffset=0;state.pauseStart=0;
   w.exercises.forEach(ex=>{
     const cw=getCW(state.user,ex.id,ex.weight);
     state.sets[ex.id]=Array.from({length:ex.sets},()=>({reps:ex.reps??null,weight:cw,done:false}));
@@ -862,7 +901,8 @@ function startWkt(idx) {
   renderExercises(w);updateProgress(w);
   state.startTime=Date.now();clearInterval(state.ti);
   state.ti=setInterval(()=>{
-    const s=Math.floor((Date.now()-state.startTime)/1000);
+    if(state.timerPaused)return;
+    const s=Math.floor((Date.now()-state.startTime-state.pauseOffset)/1000);
     document.getElementById('wt-timer').textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
   },1000);
   showScreen('workout');
@@ -870,9 +910,68 @@ function startWkt(idx) {
   document.getElementById('nav-workout').classList.add('active');
 }
 
+function toggleTimer() {
+  if(state.timerPaused) {
+    state.timerPaused=false;
+    state.pauseOffset+=(Date.now()-state.pauseStart);
+    document.getElementById('wt-timer').style.opacity='1';
+  } else {
+    state.timerPaused=true;
+    state.pauseStart=Date.now();
+    document.getElementById('wt-timer').style.opacity='.5';
+    document.getElementById('wt-timer').textContent='⏸ '+document.getElementById('wt-timer').textContent.replace('⏸ ','');
+  }
+}
+
+function confirmLeaveWorkout() {
+  if(confirm('Training wirklich abbrechen? Fortschritt wird gespeichert.')) {
+    clearInterval(state.ti);
+    const dur=Math.floor((Date.now()-state.startTime-state.pauseOffset)/60000);
+    const log=getLog(state.user);
+    log[today()]={workoutIndex:state.wIdx,sets:state.sets,duration:dur,completed:false,ts:Date.now(),notes:state.notes};
+    saveLog(state.user,log);
+    if(hasSb())sbSaveEntry(state.user,today(),log[today()]);
+    loadDashboard();navTo('dashboard');
+    showToast('Fortschritt gespeichert');
+  }
+}
+
+function backlogWorkout() {
+  const dateStr=prompt('Datum eingeben (YYYY-MM-DD):',today());
+  if(!dateStr||!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)){showToast('Ungültiges Datum');return;}
+  const plan=getPlan(state.user);
+  const options=plan.workouts.map((w,i)=>`${i+1}: ${w.name} ${w.label}`).join('\n');
+  const choice=prompt('Welches Training?\n'+options);
+  const idx=parseInt(choice)-1;
+  if(isNaN(idx)||idx<0||idx>=plan.workouts.length){showToast('Ungültige Auswahl');return;}
+  const log=getLog(state.user);
+  const w=plan.workouts[idx];
+  const sets={};
+  w.exercises.forEach(ex=>{
+    const cw=getCW(state.user,ex.id,ex.weight);
+    sets[ex.id]=Array.from({length:ex.sets},()=>({reps:ex.reps??null,weight:cw,done:true}));
+  });
+  log[dateStr]={workoutIndex:idx,sets:sets,duration:45,completed:true,ts:Date.now()};
+  saveLog(state.user,log);
+  if(hasSb())sbSaveEntry(state.user,dateStr,log[dateStr]);
+  loadDashboard();
+  showToast('Training nachgetragen für '+dateStr);
+}
+
 function renderExercises(w) {
   const el=document.getElementById('ex-list');
-  el.innerHTML=w.exercises.map((ex,ei)=>{
+  // Warmup card
+  let warmupHTML=`<div class="card fi" style="margin-bottom:16px;border-color:rgba(245,158,11,.25)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span class="badge ba">Aufwärmen</span>
+      <span style="font-size:11px;color:var(--muted)">5-10 Minuten</span>
+    </div>
+    <div style="font-size:13px;color:var(--sec);line-height:1.7">
+      1. Laufband oder Stepper: 5 Min lockeres Tempo<br>
+      2. Aufwärmsätze: Erste Übung mit 50% Gewicht, 10 Reps
+    </div>
+  </div>`;
+  el.innerHTML=warmupHTML+w.exercises.map((ex,ei)=>{
     const isTime=ex.duration!=null;
     const sets=state.sets[ex.id];
     const mm=EM[ex.id];
@@ -893,32 +992,81 @@ function renderExercises(w) {
       ${ex.notes?`<div class="card-inner" style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);line-height:1.6">${ex.notes}</div></div>`:''}
       <div class="srow" style="padding:4px 0 8px;border-bottom:1px solid var(--border)">
         <div></div>
-        <div style="font-size:10px;color:var(--muted)">${isTime?'Dauer':'Wdh'}</div>
-        <div style="font-size:10px;color:var(--muted);text-align:center">Plan</div>
+        <div style="font-size:10px;color:var(--muted)">Wdh</div>
+        <div style="font-size:10px;color:var(--muted);text-align:center">${isTime?'Dauer':'Gewicht'}</div>
         <div style="font-size:10px;color:var(--muted);text-align:center">Ist</div>
         <div></div>
       </div>
       ${sets.map((set,si)=>`
         <div class="srow" id="sr-${ex.id}-${si}">
           <div class="snum">${si+1}</div>
-          <div style="font-size:13px;font-weight:600">${isTime?ex.duration+'s':(ex.reps??'—')}</div>
+          <input class="ri" type="number" step="1" value="${set.reps??''}" placeholder="${isTime?ex.duration+'s':'—'}"
+            ${isTime?'disabled':''}
+            onchange="state.sets['${ex.id}'][${si}].reps=parseInt(this.value)||0" onclick="this.select()">
           <input class="wi" type="number" step="0.5" value="${set.weight??''}" placeholder="${isTime||ex.weight===null?'—':'kg'}"
             ${isTime||ex.weight===null?'disabled':''}
             onchange="state.sets['${ex.id}'][${si}].weight=parseFloat(this.value)||0" onclick="this.select()">
           <input class="wi" type="number" step="0.5" placeholder="${isTime?'s':'kg'}"
             onchange="setAct('${ex.id}',${si},this.value)" onclick="this.select()">
-          <div class="chk" id="chk-${ex.id}-${si}" onclick="toggleSet('${ex.id}',${si})">
+          <div class="chk" id="chk-${ex.id}-${si}" onclick="toggleSet('${ex.id}',${si},event)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
-        </div>`).join('')}
+        </div>
+        <div id="suggest-${ex.id}-${si}" style="display:none;font-size:10px;color:var(--amber);padding:0 0 4px 33px"></div>`).join('')}
+      <div style="margin-top:6px;display:flex;gap:6px;align-items:center">
+        <button class="btn btn-g" style="padding:4px 8px;font-size:11px" onclick="toggleNote('${ex.id}')">📝</button>
+      </div>
+      <div id="note-${ex.id}" style="display:none;margin-top:6px">
+        <textarea class="ifield" style="font-size:12px;min-height:50px;resize:vertical;width:100%"
+          placeholder="Notizen zur Übung..."
+          onchange="state.notes['${ex.id}']=this.value">${state.notes[ex.id]||''}</textarea>
+      </div>
     </div>`;
   }).join('');
 }
 
-function toggleSet(exId,si) {
+function toggleNote(exId) {
+  const el=document.getElementById('note-'+exId);
+  if(el)el.style.display=el.style.display==='none'?'block':'none';
+}
+
+function toggleSet(exId,si,evt) {
   const s=state.sets[exId][si];s.done=!s.done;
-  document.getElementById(`chk-${exId}-${si}`).classList.toggle('done',s.done);
-  const plan=getPlan(state.user);updateProgress(plan.workouts[state.wIdx]);
+  const chkEl=document.getElementById(`chk-${exId}-${si}`);
+  chkEl.classList.toggle('done',s.done);
+  const plan=getPlan(state.user);const w=plan.workouts[state.wIdx];
+  updateProgress(w);
+  // Confetti burst on completion
+  if(s.done && evt) {
+    spawnConfetti(chkEl);
+  }
+  // Smart weight suggestion: if reps < planned and there's a next set
+  if(s.done) {
+    const ex=w.exercises.find(e=>e.id===exId);
+    if(ex && s.reps!=null && ex.reps!=null && s.reps < ex.reps && si < state.sets[exId].length-1) {
+      const nextSet=state.sets[exId][si+1];
+      const sugW=Math.round((nextSet.weight||ex.weight)*0.9*2)/2; // reduce ~10%, round to 0.5
+      const sugEl=document.getElementById(`suggest-${exId}-${si}`);
+      if(sugEl){sugEl.style.display='block';sugEl.textContent=`Empf: ${sugW}kg (Reps unter Plan)`;}
+      // Pre-fill next set weight input
+      const nextRow=document.getElementById(`sr-${exId}-${si+1}`);
+      if(nextRow){const wInputs=nextRow.querySelectorAll('.wi');if(wInputs[0]&&!nextSet.done){wInputs[0].value=sugW;nextSet.weight=sugW;}}
+    }
+  }
+}
+
+function spawnConfetti(el) {
+  const rect=el.getBoundingClientRect();
+  const colors=['#8B5CF6','#10B981','#F59E0B','#38BDF8','#EF4444','#EC4899','#F97316'];
+  for(let i=0;i<10;i++){
+    const dot=document.createElement('div');
+    dot.className='confetti-dot';
+    const angle=Math.random()*Math.PI*2;
+    const dist=30+Math.random()*40;
+    dot.style.cssText=`left:${rect.left+rect.width/2}px;top:${rect.top+rect.height/2}px;position:fixed;background:${colors[Math.floor(Math.random()*colors.length)]};--tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px`;
+    document.body.appendChild(dot);
+    setTimeout(()=>dot.remove(),700);
+  }
 }
 function setAct(exId,si,v){if(!state.actualW[exId])state.actualW[exId]={};state.actualW[exId][si]=parseFloat(v)||0;}
 function updateProgress(w) {
@@ -932,9 +1080,9 @@ function updateProgress(w) {
 
 function finishWorkout() {
   clearInterval(state.ti);
-  const dur=Math.floor((Date.now()-state.startTime)/60000);
+  const dur=Math.floor((Date.now()-state.startTime-state.pauseOffset)/60000);
   const log=getLog(state.user);
-  log[today()]={workoutIndex:state.wIdx,sets:state.sets,duration:dur,completed:false,ts:Date.now()};
+  log[today()]={workoutIndex:state.wIdx,sets:state.sets,duration:dur,completed:false,ts:Date.now(),notes:state.notes};
   saveLog(state.user,log);
   if(hasSb())sbSaveEntry(state.user,today(),log[today()]);
   renderFeedback();showScreen('feedback');
@@ -1036,7 +1184,7 @@ Daten: ${JSON.stringify(exData)}`;
       ${p.tips?.length?`<div class="div"></div>${p.tips.map(t=>`<div style="font-size:12px;color:var(--sec);line-height:1.6;margin-bottom:4px">· ${t}</div>`).join('')}`:''}
       <div class="div"></div>
       <div style="font-size:13px;font-style:italic;color:var(--amber)">${p.encouragement}</div>
-    </div>`;
+    </div>${renderCoachQuote(exData)}`;
     btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Plan aktualisiert`;
     btn.className='btn btn-s btn-full';btn.style.marginBottom='12px';
     showToast('Training gespeichert · Gewichte aktualisiert');loadDashboard();
@@ -1067,11 +1215,67 @@ Daten: ${JSON.stringify(exData)}`;
           <div style="font-size:10px;color:var(--muted)">${a.currentWeight} kg →</div>
           <div style="font-size:13px;font-weight:700;color:${a.direction==='increase'?'var(--emerald)':'var(--red)'}">${a.recommendedWeight} kg</div>
         </div></div>`).join('')}`:''}
-    </div>`;
+    </div>${renderCoachQuote(exData)}`;
     btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Gespeichert`;
     btn.className='btn btn-s btn-full';btn.style.marginBottom='12px';
     showToast('Training gespeichert · Gewichte lokal angepasst');loadDashboard();
   }
+}
+
+function getCoachQuote(exData) {
+  const isAlex=state.user==='alex';
+  const totalEx=exData.length;
+  const hardCount=exData.filter(e=>e.rating==='hard').length;
+  const incomplete=exData.filter(e=>e.completedSets<e.plannedSets).length;
+  const allDone=exData.every(e=>e.completedSets>=e.plannedSets);
+  const allGood=allDone&&hardCount===0;
+  let quotes;
+  if(allGood){
+    quotes=isAlex?[
+      'Sauber durchgezogen, Eisenbruder. So baut man Stahl auf.',
+      'Jeder Satz war drin — keine Ausreden, nur Ergebnisse. Weiter so.',
+      'Perfekte Einheit. Die Hantel hat heute Respekt gelernt.',
+      'Maschine. Genau so sieht konstanter Fortschritt aus.'
+    ]:[
+      'Stark gemacht! Jede Übung sauber abgeliefert — du wirst immer besser!',
+      'Perfektes Training! Dein Körper dankt dir für die Arbeit heute.',
+      'Toll durchgezogen! Diese Konstanz wird sich auszahlen.',
+      'Wunderbar! Alle Übungen geschafft — das ist echte Stärke!'
+    ];
+  } else if(hardCount>totalEx/2||incomplete>totalEx/2){
+    quotes=isAlex?[
+      'Harter Tag, aber du warst da. Das zählt. Nächstes Mal reißen wir es.',
+      'Nicht jede Einheit ist perfekt — aber jede Einheit zählt. Dranbleiben.',
+      'Schwer heißt nicht schlecht. Du hast die Gewichte ehrlich bewertet. Respekt.',
+      'Durchgebissen. Die schlechten Tage machen die guten möglich.'
+    ]:[
+      'Nicht jeder Tag ist leicht — aber du hast dich durchgekämpft! Das zählt.',
+      'Auch schwere Tage bringen dich weiter. Sei stolz, dass du hier warst!',
+      'Die Gewichte anpassen ist schlau, nicht schwach. Nächstes Mal wird besser!',
+      'Kopf hoch! Jedes Training macht dich stärker, auch die harten.'
+    ];
+  } else {
+    quotes=isAlex?[
+      'Solides Training mit Luft nach oben. Beim nächsten Mal drücken wir mehr.',
+      'Gute Basis gelegt. Manche Übungen brauchen noch Feinschliff — kommt.',
+      'Du weißt, was zu tun ist. Nächste Woche zeigen wir dem Gewicht, wer Boss ist.'
+    ]:[
+      'Gut gemacht! Ein paar Übungen waren fordernd — das ist Fortschritt!',
+      'Starke Leistung! Mit den Anpassungen wird das nächste Training noch besser.',
+      'Gute Arbeit! Dein Körper passt sich an — bleib dran!'
+    ];
+  }
+  return quotes[Math.floor(Math.random()*quotes.length)];
+}
+
+function renderCoachQuote(exData) {
+  const isAlex=state.user==='alex';
+  const quoteLabel=isAlex?'🦾 Eisenbruder':'💪 Dein Trainer';
+  const quote=getCoachQuote(exData);
+  return `<div style="margin-top:14px;padding:14px;background:${isAlex?'rgba(139,92,246,.08)':'rgba(16,185,129,.08)'};border-radius:12px;border:1px solid ${isAlex?'rgba(139,92,246,.2)':'rgba(16,185,129,.2)'}">
+    <div style="font-size:11px;font-weight:700;color:${isAlex?'var(--purple)':'var(--emerald)'};margin-bottom:6px">${quoteLabel}</div>
+    <div style="font-size:13px;font-style:italic;color:var(--text);line-height:1.6">${quote}</div>
+  </div>`;
 }
 
 // ── ICS EXPORT ─────────────────────────────────────────────────
