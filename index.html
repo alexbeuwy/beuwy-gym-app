@@ -774,6 +774,163 @@ function fmtDate(d) { return new Date(d+'T12:00:00').toLocaleDateString('de-DE',
 function getCW(u,exId,fallback) { const h=ls.get(`w_${u}_${exId}`,null); return h?.length?h[h.length-1]:fallback; }
 function saveW(u,exId,w) { const h=ls.get(`w_${u}_${exId}`,[]);h.push(w);ls.set(`w_${u}_${exId}`,h); }
 
+// ── REST TIMER (Feature 1) ────────────────────────────────────
+let restInterval=null;let restSeconds=0;let restDefault=90;
+const BEEP_SRC='data:audio/wav;base64,UklGRl9vT19teleXBERhdGFhdGEBAQEBAQEBAQEBAQEBAQE=';
+
+function startRestTimer(seconds) {
+  if(restInterval)clearInterval(restInterval);
+  restSeconds=seconds||restDefault;
+  const el=document.getElementById('rest-timer');
+  const disp=document.getElementById('rest-time-display');
+  disp.textContent=restSeconds;
+  el.classList.add('active');
+  // Update preset buttons
+  el.querySelectorAll('.rest-preset').forEach(b=>{b.classList.toggle('active',parseInt(b.textContent)===restDefault);});
+  restInterval=setInterval(()=>{
+    restSeconds--;
+    disp.textContent=restSeconds;
+    if(restSeconds<=0){
+      clearInterval(restInterval);restInterval=null;
+      el.classList.remove('active');
+      try{const a=new Audio();a.src='data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkZeWj4F0aGRmaXJ/ipOZnZiQgXJlXl1ibXqIk5mblI2BdGhiYWdyfIqUmpuUjIF0Z2FhZ3N+i5WamZKLf3JmYWJod4KNl5qYkYd6bmVhZGp4g46Wl5WOhHhsZWJlbHmFkJeXlI2Dd2xkY2ZueYaRl5eTjIJ3bGRjZm15hpGXl5OMgndtZGRmbnmGkZaXk4yCeG1kZGdueYaQlZeTjIJ4bWVkZ295hpCVl5OLgnhtZWRnb3mGkJWXk4uCeG5lZGdveYWPlJaTi4F4bmVlZ3B5hY+UlZOKgXhuZmVncHmFjpOUkoqBeG5mZmhxeYWOk5SSiYB4b2ZmaHF5hI6Tk5KJgHhvZ2docXmEjpKTkomAeG9namhxeYSOkpOSiIB4cGdqaXJ5hI2Rk5GIf3hwaGppc3mEjZGRkYh/eHBpampzeYOMkJCQh354cWpqanN5g4yQkJCHfnhxampqc3mDjJCQkIZ+eHFqa2pzeIKMj4+QiH94cWpranthGGMj4+PaWwzJSkuN0RWZ3h/fnVpXVZWXWx9jpaWkImAd3BtcHd/hoyQkIuFfndzcXJ2fIOJjY6NiYR/e3h3d3l+g4iLjIuIhYB9enl5en6Dh4qLioeEgH17enp7foKGiYqJh4N/fHt7e3x/goWHiIeGg398fHt8fH+ChYeHhoWCf3x8fH19gIKEhoaFhIJ/fX19fn6AgoSFhYSDgX99fX5+f4GDhIWEg4KAfn5+fn+AgYOEhIOCgX9+fn5/gIGCg4ODgoGAfn5/f4CAgYKDg4KBgH9+f3+AgIGCgoKCgYB/f39/gIGBgoKCgYGAf39/f4CBgYKCgoGBgH9/f3+AgYGBgoKBgYB/f39/gIGBgYKCgYGAf3+Af4CAgYGCgoGBgIB/f4CAgICBgYGBgYGAf3+AgICAgYGBgYGBgH9/gICAgIGBgYGBgYB/f4CAgICBgYGBgYCAf3+AgICAgIGBgYGBgH9/gICAgICBgYGBgYCAf4CAgICAgIGBgYGAgH9/gICAgICBgYGBgICAf3+AgICAgIGBgYGAgH9/gICAgA==';a.volume=0.5;a.play();}catch(e){}
+      showToast('Pause vorbei!');
+    }
+  },1000);
+}
+
+function skipRest() {
+  if(restInterval)clearInterval(restInterval);
+  restInterval=null;
+  document.getElementById('rest-timer').classList.remove('active');
+}
+
+function setRestDuration(s) {
+  restDefault=s;
+  const el=document.getElementById('rest-timer');
+  el.querySelectorAll('.rest-preset').forEach(b=>{b.classList.toggle('active',parseInt(b.textContent)===s);});
+  if(restInterval){
+    clearInterval(restInterval);
+    startRestTimer(s);
+  }
+}
+
+// ── LAST PERFORMANCE (Feature 2) ──────────────────────────────
+function getLastPerformance(user, exId) {
+  const log=getLog(user);
+  const dates=Object.keys(log).sort().reverse();
+  for(const d of dates) {
+    if(d===today()) continue;
+    const e=log[d];
+    if(e.sets && e.sets[exId]) {
+      return e.sets[exId].filter(s=>s.done).map(s=>`${s.reps}×${s.weight||'BW'}kg`).join(' · ');
+    }
+  }
+  return null;
+}
+
+// ── PR CHECK (Feature 3) ──────────────────────────────────────
+function checkPR(user, exId, reps, weight) {
+  if(!weight || weight<=0) return false;
+  const key=`pr_${user}_${exId}`;
+  const pr=ls.get(key, {maxWeight:0, maxReps:0, maxVolume:0});
+  let isPR=false;
+  if(weight > pr.maxWeight) { pr.maxWeight=weight; isPR=true; }
+  if(reps > pr.maxReps) { pr.maxReps=reps; isPR=true; }
+  const vol=reps*weight;
+  if(vol > pr.maxVolume) { pr.maxVolume=vol; isPR=true; }
+  if(isPR) ls.set(key, pr);
+  return isPR;
+}
+
+// ── SPARKLINE (Feature 4 + 5 shared) ──────────────────────────
+function renderSparkline(data, color) {
+  if(!data || data.length<2) return '';
+  const max=Math.max(...data);const min=Math.min(...data);const range=max-min||1;
+  const w=120,h=28,pad=2;
+  const points=data.map((v,i)=>`${pad+i*(w-2*pad)/(data.length-1)},${pad+(1-(v-min)/range)*(h-2*pad)}`).join(' ');
+  return `<svg width="${w}" height="${h}" style="display:block"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+// ── WEIGHT HISTORY per exercise (Feature 4) ───────────────────
+function getWeightHistory(user, exId) {
+  const log=getLog(user);
+  const dates=Object.keys(log).sort();
+  const history=[];
+  for(const d of dates) {
+    const e=log[d];
+    if(e.sets && e.sets[exId]) {
+      const doneSets=e.sets[exId].filter(s=>s.done && s.weight>0);
+      if(doneSets.length) {
+        const maxW=Math.max(...doneSets.map(s=>s.weight));
+        history.push({date:d, maxWeight:maxW});
+      }
+    }
+  }
+  return history;
+}
+
+// ── BODY WEIGHT (Feature 5) ───────────────────────────────────
+function renderBodyWeight() {
+  const el=document.getElementById('bw-card');if(!el)return;
+  const bwData=ls.get(`bw_${state.user}`, []);
+  const latest=bwData.length ? bwData[bwData.length-1].weight : (getPlan(state.user)?.weight || '—');
+  const weights=bwData.map(e=>e.weight);
+  const trend=weights.length>=2 ? (weights[weights.length-1]>weights[weights.length-2]?'↗':'↘') : '→';
+  const spark=renderSparkline(weights.slice(-10), 'var(--purple)');
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;cursor:pointer" onclick="logBodyWeight()">
+      <div>
+        <div style="font-size:22px;font-weight:800">${latest}<span style="font-size:13px;color:var(--muted)"> kg ${trend}</span></div>
+        <div style="font-size:10px;color:var(--muted)">Tippen zum Aktualisieren</div>
+      </div>
+      ${spark?`<div style="flex:1;text-align:right">${spark}</div>`:''}
+    </div>`;
+}
+
+function logBodyWeight() {
+  const w=prompt('Aktuelles Gewicht in kg:');
+  if(!w||isNaN(parseFloat(w)))return;
+  const bw=ls.get(`bw_${state.user}`,[]);
+  bw.push({date:today(),weight:parseFloat(w)});
+  ls.set(`bw_${state.user}`,bw);
+  renderBodyWeight();
+  showToast(`Gewicht aktualisiert: ${w} kg`);
+}
+
+// ── SUPERSET DETECTION (Feature 6) ────────────────────────────
+const OPPOSING_MUSCLES={
+  chest:['back','lats'],back:['chest','upper_chest'],lats:['chest','shoulders'],
+  biceps:['triceps'],triceps:['biceps'],
+  quads:['hamstrings'],hamstrings:['quads','glutes'],
+  shoulders:['back','lats'],upper_chest:['back','lats'],
+  glutes:['quads'],rear_delts:['chest','shoulders']
+};
+
+function detectSupersets(exercises) {
+  const groups=[];
+  let i=0;
+  while(i<exercises.length) {
+    if(i+1<exercises.length) {
+      const a=EM[exercises[i].id];const b=EM[exercises[i+1].id];
+      if(a&&b) {
+        const aPrimary=a.primary||[];const bPrimary=b.primary||[];
+        let isSuperset=false;
+        for(const m of aPrimary) {
+          const opp=OPPOSING_MUSCLES[m]||[];
+          if(bPrimary.some(bp=>opp.includes(bp))){isSuperset=true;break;}
+        }
+        if(isSuperset) {
+          groups.push({start:i,end:i+1});
+          i+=2;continue;
+        }
+      }
+    }
+    i++;
+  }
+  return groups;
+}
+
 // ── STATE ──────────────────────────────────────────────────────
 const state = { user:null, wIdx:null, sets:{}, startTime:null, ti:null, ratings:{}, actualW:{}, notes:{}, timerPaused:false, pauseOffset:0, pauseStart:0 };
 
@@ -818,7 +975,7 @@ function loadDashboard() {
   const streakEl=document.getElementById('streak-el');
   if(activeWeeks>4)streakEl.classList.add('hot');else streakEl.classList.remove('hot');
   if(!hasSb())document.getElementById('sb-banner').classList.add('show');
-  renderWeekStrip();renderTodayCard(plan);renderStats(plan);renderWktBtns(plan);
+  renderWeekStrip();renderBodyWeight();renderTodayCard(plan);renderStats(plan);renderWktBtns(plan);
   if(hasSb())setSyncDots('synced');
 }
 
@@ -1020,6 +1177,10 @@ function renderExercises(w) {
       2. Aufwärmsätze: Erste Übung mit 50% Gewicht, 10 Reps
     </div>
   </div>`;
+  const supersetGroups=detectSupersets(w.exercises);
+  const supersetMap={};
+  supersetGroups.forEach((g,gi)=>{supersetMap[g.start]='start_'+gi;supersetMap[g.end]='end_'+gi;});
+
   el.innerHTML=warmupHTML+w.exercises.map((ex,ei)=>{
     const isTime=ex.duration!=null;
     const sets=state.sets[ex.id];
@@ -1027,13 +1188,21 @@ function renderExercises(w) {
     const equipKey=mm?.equip||'machine';
     const eColor=w.color;
     const tags=muscleTags(ex.id);
-    return `
-    <div class="card fi fi${Math.min(ei+1,6)}" style="margin-bottom:12px;border-top:2px solid ${eColor}30">
+    const lastPerf=getLastPerformance(state.user, ex.id);
+    const ssKey=supersetMap[ei]||'';
+    const isSSStart=ssKey.startsWith('start_');
+    const isSSEnd=ssKey.startsWith('end_');
+    const ssGroupOpen=isSSStart?`<div class="superset-group"><div style="position:relative"><span class="superset-badge">SUPERSET</span></div>`:'';
+    const ssLinkClass=isSSEnd?'superset-link':'';
+    const ssGroupClose=isSSEnd?'</div>':'';
+    return `${ssGroupOpen}
+    <div class="card fi fi${Math.min(ei+1,6)} ${ssLinkClass}" style="margin-bottom:12px;border-top:2px solid ${eColor}30">
       <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
         <div class="equip-icon" style="background:${w.colorLight};color:${eColor}">${getEquipIcon(equipKey,eColor)}</div>
         <div style="flex:1;min-width:0">
           <div class="subheading" style="margin-bottom:1px">${ex.name}</div>
           <div style="font-size:11px;color:var(--muted)">${ex.equipment}</div>
+          ${lastPerf?`<div style="font-size:11px;color:var(--sec);margin-top:2px">Letztes Mal: ${lastPerf}</div>`:''}
           ${tags?`<div style="margin-top:6px;display:flex;flex-wrap:wrap">${tags}</div>`:''}
         </div>
         <span class="badge" style="background:${w.colorLight};color:${eColor};flex-shrink:0">${ex.sets}× ${isTime?ex.duration+'s':ex.reps}</span>
@@ -1070,7 +1239,7 @@ function renderExercises(w) {
           placeholder="Notizen zur Übung..."
           onchange="state.notes['${ex.id}']=this.value">${state.notes[ex.id]||''}</textarea>
       </div>
-    </div>`;
+    </div>${ssGroupClose}`;
   }).join('');
 }
 
@@ -1088,6 +1257,19 @@ function toggleSet(exId,si,evt) {
   // Confetti burst on completion
   if(s.done && evt) {
     spawnConfetti(chkEl);
+  }
+  // Rest timer (Feature 1)
+  if(s.done) {
+    startRestTimer(restDefault);
+  }
+  // PR check (Feature 3)
+  if(s.done && s.weight && s.weight>0 && s.reps) {
+    const ex=w.exercises.find(e=>e.id===exId);
+    if(ex && checkPR(state.user, exId, s.reps, s.weight)) {
+      showToast(`🏆 Neuer Rekord! ${ex.name} — ${s.weight}kg × ${s.reps}`);
+      const row=document.getElementById(`sr-${exId}-${si}`);
+      if(row) row.classList.add('pr-set');
+    }
   }
   // Smart weight suggestion: if reps < planned and there's a next set
   if(s.done) {
@@ -1497,8 +1679,12 @@ function renderPlan() {
         const cw=getCW(state.user,ex.id,ex.weight);
         const mm=EM[ex.id];const equipKey=mm?.equip||'machine';
         const tags=muscleTags(ex.id);
+        const wHist=getWeightHistory(state.user,ex.id);
+        const wData=wHist.map(h=>h.maxWeight);
+        const trendColor=wData.length>=2?(wData[wData.length-1]>=wData[wData.length-2]?'var(--emerald)':'var(--red)'):'var(--muted)';
+        const spark=renderSparkline(wData, trendColor);
         return `<div style="padding:9px 0;border-bottom:1px solid var(--border)">
-          <div style="display:grid;grid-template-columns:1fr 80px 80px;align-items:center;margin-bottom:${tags?'5px':'0'}">
+          <div style="display:grid;grid-template-columns:1fr 80px 80px;align-items:center;margin-bottom:${tags||spark?'5px':'0'}">
             <div style="display:flex;align-items:center;gap:8px">
               <div style="color:${w.color};flex-shrink:0">${getEquipIcon(equipKey,w.color)}</div>
               <div>
@@ -1509,6 +1695,7 @@ function renderPlan() {
             <div style="font-size:13px;font-weight:700;text-align:center">${ex.sets}×${ex.reps||ex.duration+'s'}</div>
             <div style="font-size:13px;font-weight:700;text-align:right;color:${w.color}">${cw?cw+' kg':'BW'}</div>
           </div>
+          ${spark?`<div style="margin-left:40px;margin-bottom:4px">${spark}</div>`:''}
           ${tags?`<div style="display:flex;flex-wrap:wrap;margin-left:40px">${tags}</div>`:''}
         </div>`;
       }).join('')}
