@@ -452,7 +452,20 @@ const EM = {
   cablerow:  { primary:['back'], secondary:['biceps'],                      equip:'cable' },
   facepull:  { primary:['rear_delts','traps'], secondary:[],               equip:'cable' },
   hammer:    { primary:['biceps','brachialis'], secondary:[],               equip:'dumbbell' },
-  abrollout: { primary:['core'], secondary:['lats'],                        equip:'wheel' }
+  abrollout: { primary:['core'], secondary:['lats'],                        equip:'wheel' },
+  // Vicky
+  v_latpull:    { primary:['lats'], secondary:['biceps'],                    equip:'cable' },
+  v_cablerow:   { primary:['back'], secondary:['biceps'],                    equip:'cable' },
+  v_shldr_press:{ primary:['shoulders'], secondary:['triceps'],              equip:'machine' },
+  v_facepull:   { primary:['rear_delts','traps'], secondary:[],             equip:'cable' },
+  v_forearm_a:  { primary:['brachialis'], secondary:[],                      equip:'dumbbell' },
+  v_forearm_b:  { primary:['brachialis'], secondary:[],                      equip:'dumbbell' },
+  v_plank:      { primary:['core'], secondary:[],                            equip:'mat' },
+  v_legpress:   { primary:['quads'], secondary:['glutes'],                   equip:'machine' },
+  v_hipthrust:  { primary:['glutes'], secondary:['hamstrings'],              equip:'barbell' },
+  v_legcurl:    { primary:['hamstrings'], secondary:[],                      equip:'machine' },
+  v_abductor:   { primary:['glutes'], secondary:[],                          equip:'machine' },
+  v_crunch:     { primary:['core'], secondary:[],                            equip:'machine' }
 };
 
 function getEquipIcon(equipKey, color='currentColor') {
@@ -679,7 +692,36 @@ const ls = {
   set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
 };
 
-function getPlan(u) { return u==='alex' ? ALEX_PLAN : ls.get('vicky_plan',null); }
+const VICKY_PLAN = {
+  name:"Vicky", weight:56,
+  profile:{weight:56,height:158,goal:"Straffen & Definieren",injuries:"Fußgelenk selten Schmerzen, schwache Unterarme, leichtes Lipödem",gymDays:2,level:"beginner"},
+  workouts:[
+    { id:"v_upper", name:"Oberkörper", label:"A", subtitle:"Rücken · Schultern · Unterarme · Core",
+      color:"#8B5CF6", colorLight:"rgba(139,92,246,.14)",
+      exercises:[
+        {id:"v_latpull",    name:"Latzug",              equipment:"Kabelturm · weiter Griff",    sets:3,reps:12,weight:20,  notes:"Schulterblätter nach unten ziehen · kontrolliert ablassen · Ellenbogen Richtung Hüfte"},
+        {id:"v_cablerow",   name:"Kabelrudern",         equipment:"Kabelturm · enger Griff",     sets:3,reps:12,weight:15,  notes:"Brust raus · Schulterblätter zusammen · kein Schwung · 1s halten"},
+        {id:"v_shldr_press",name:"Schulterdrücken",     equipment:"Maschine",                    sets:3,reps:12,weight:8,   notes:"Rücken am Polster · Ellenbogen nicht unter Schulter · kontrolliert"},
+        {id:"v_facepull",   name:"Face Pulls",          equipment:"Kabel · Seilgriff · Kopfhöhe",sets:3,reps:15,weight:7,   notes:"Haltungskorrektur · Außenrotation betonen · Schulterblätter aktiv"},
+        {id:"v_forearm_a",  name:"Unterarm-Curls",      equipment:"Kurzhanteln · Unterarmbank",  sets:3,reps:15,weight:4,   notes:"Handgelenk über Kante · langsam auf und ab · Griffkraft aufbauen"},
+        {id:"v_plank",      name:"Plank",               equipment:"Matte",                       sets:3,reps:null,weight:null,duration:30,notes:"30s halten · Körper gerade · Bauch aktiv · Hüfte nicht absinken"}
+      ]
+    },
+    { id:"v_lower", name:"Unterkörper", label:"B", subtitle:"Beine · Po · Bauch · Unterarme",
+      color:"#10B981", colorLight:"rgba(16,185,129,.14)",
+      exercises:[
+        {id:"v_legpress",   name:"Beinpresse",          equipment:"Maschine",                    sets:3,reps:15,weight:50,  notes:"Füße schulterbreit hoch · Knie nicht voll strecken · Lipödem-schonend"},
+        {id:"v_hipthrust",  name:"Hip Thrust",          equipment:"Langhantel · Bank",           sets:3,reps:15,weight:30,  notes:"Schulterblätter auf Bankkante · Po oben maximal anspannen · 1s halten"},
+        {id:"v_legcurl",    name:"Beinbeuger liegend",  equipment:"Maschine",                    sets:3,reps:12,weight:15,  notes:"Hintere Oberschenkel · langsam ablassen · Hüfte am Polster"},
+        {id:"v_abductor",   name:"Abduktoren-Maschine", equipment:"Maschine",                    sets:3,reps:15,weight:20,  notes:"Po-Außenseite · oben 1s halten · kontrolliert zurück · kein Schwung"},
+        {id:"v_crunch",     name:"Crunch-Maschine",     equipment:"Maschine",                    sets:3,reps:15,weight:10,  notes:"Aus dem Bauch rollen · nicht mit Armen ziehen · Ausatmen beim Crunchen"},
+        {id:"v_forearm_b",  name:"Unterarm-Curls",      equipment:"Kurzhanteln · Unterarmbank",  sets:3,reps:15,weight:4,   notes:"Auch am Beintag Unterarme trainieren · Griffkraft braucht Frequenz"}
+      ]
+    }
+  ]
+};
+
+function getPlan(u) { return u==='alex' ? ALEX_PLAN : (ls.get('vicky_plan',null) || VICKY_PLAN); }
 function getLog(u)  { return ls.get(`log_${u}`,{}); }
 function saveLog(u,log) { ls.set(`log_${u}`,log); }
 function today() { return new Date().toISOString().split('T')[0]; }
@@ -707,7 +749,7 @@ function navTo(tab) {
 
 // ── USER SELECT ────────────────────────────────────────────────
 async function selectUser(u) {
-  if(u==='vicky'&&!ls.get('vicky_plan',null)){showScreen('vicky');return;}
+  if(u==='vicky'&&!ls.get('vicky_plan',null)&&typeof VICKY_PLAN==='undefined'){showScreen('vicky');return;}
   state.user=u;
   if(hasSb()){
     setSyncDots('syncing');
@@ -969,7 +1011,7 @@ async function runAI() {
 Training: ${w.name} ${w.label} — ${w.subtitle}
 Daten: ${JSON.stringify(exData)}`;
   try {
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:msg}]})});
+    const r=await fetch(`${SB.url}/functions/v1/ai-coach`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({max_tokens:1000,system:sys,messages:[{role:'user',content:msg}]})});
     const data=await r.json();const raw=data.content[0].text.replace(/```json|```/g,'').trim();const p=JSON.parse(raw);
     const log=getLog(state.user);
     if(log[today()]){log[today()].completed=true;log[today()].analysis=p;log[today()].ratings=state.ratings;saveLog(state.user,log);if(hasSb())sbSaveEntry(state.user,today(),log[today()]);}
@@ -1000,9 +1042,35 @@ Daten: ${JSON.stringify(exData)}`;
     showToast('Training gespeichert · Gewichte aktualisiert');loadDashboard();
   } catch(err) {
     console.error(err);
-    const log=getLog(state.user);if(log[today()]){log[today()].completed=true;saveLog(state.user,log);}
-    res.style.display='block';res.innerHTML=`<div class="card" style="border-color:var(--red);margin-bottom:12px"><div style="font-size:13px;color:var(--muted)">KI momentan nicht verfügbar. Training gespeichert.</div></div>`;
-    btn.innerHTML='Erneut versuchen';btn.disabled=false;
+    // Lokaler Fallback: Gewichte basierend auf Rating anpassen
+    const adjustments=[];
+    exData.forEach(ex=>{
+      if(!ex.plannedWeight||ex.plannedWeight===0)return;
+      const cw=parseFloat(ex.plannedWeight)||0;
+      let rw=cw,dir='hold',reason='Beibehalten';
+      const step=cw>=40?2.5:cw>=10?1.25:0.5;
+      if(ex.rating==='easy'&&ex.completedSets>=ex.plannedSets){rw=cw+step;dir='increase';reason='Alle Sätze geschafft, als leicht bewertet';}
+      else if(ex.rating==='hard'){rw=Math.max(0,cw-step);dir='decrease';reason='Als zu schwer bewertet';}
+      if(dir!=='hold'){adjustments.push({exerciseId:ex.id,exerciseName:ex.name,currentWeight:cw,recommendedWeight:rw,direction:dir,reason});saveW(state.user,ex.id,rw);}
+    });
+    const log=getLog(state.user);if(log[today()]){log[today()].completed=true;log[today()].ratings=state.ratings;saveLog(state.user,log);if(hasSb())sbSaveEntry(state.user,today(),log[today()]);}
+    res.style.display='block';
+    res.innerHTML=`<div class="ai-card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--amber)"></div>
+        <span style="font-size:11px;color:var(--muted)">Lokale Analyse (KI nicht erreichbar)</span>
+      </div>
+      <div style="font-size:13px;line-height:1.7;margin-bottom:12px">Training gespeichert! Gewichte wurden basierend auf deinem Feedback angepasst.</div>
+      ${adjustments.length?`<div class="div"></div><div class="label" style="margin-bottom:10px">Anpassungen</div>${adjustments.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div><div style="font-size:13px;font-weight:600">${a.exerciseName}</div><div style="font-size:11px;color:var(--muted)">${a.reason}</div></div>
+        <div style="text-align:right;margin-left:12px;flex-shrink:0">
+          <div style="font-size:10px;color:var(--muted)">${a.currentWeight} kg →</div>
+          <div style="font-size:13px;font-weight:700;color:${a.direction==='increase'?'var(--emerald)':'var(--red)'}">${a.recommendedWeight} kg</div>
+        </div></div>`).join('')}`:''}
+    </div>`;
+    btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Gespeichert`;
+    btn.className='btn btn-s btn-full';btn.style.marginBottom='12px';
+    showToast('Training gespeichert · Gewichte lokal angepasst');loadDashboard();
   }
 }
 
@@ -1123,7 +1191,7 @@ async function genVickyPlan() {
   const msg=`${w}kg · ${h}cm · ${l} · Ziel: ${g} · ${d}x/Woche · Fokus: ${f} · Einschränkungen: ${i}
 Regeln: ${d} Blöcke, 5-7 Übungen, dt. Namen, realistische Gewichte für ${l}. Colors: A=#8B5CF6/rgba(139,92,246,.14) B=#10B981/rgba(16,185,129,.14) C=#38BDF8/rgba(56,189,248,.14) D=#F59E0B/rgba(245,158,11,.14)`;
   try {
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2500,system:sys,messages:[{role:'user',content:msg}]})});
+    const r=await fetch(`${SB.url}/functions/v1/ai-coach`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({max_tokens:2500,system:sys,messages:[{role:'user',content:msg}]})});
     const data=await r.json();const raw=data.content[0].text.replace(/```json|```/g,'').trim();const p=JSON.parse(raw);
     ls.set('vicky_plan',p);ls.set('vicky_profile',{w,l,g,d,i,f,h});
     if(hasSb())sbSavePlan('vicky',p,{});
