@@ -1704,32 +1704,82 @@ Daten: ${JSON.stringify(exData)}`;
 function editHistEntry(date) {
   const plan=getPlan(state.user);const log=getLog(state.user);const e=log[date];
   if(!e)return;const w=plan?.workouts?.[e.workoutIndex];if(!w)return;
-  // Sätze editierbar machen
-  document.querySelectorAll('.hist-val').forEach(el=>{
-    const exId=el.dataset.exid,si=parseInt(el.dataset.si),field=el.dataset.field;
-    const val=e.sets[exId]?.[si]?.[field]||'';
-    el.innerHTML=`<input class="wi" style="width:50px;font-size:12px;padding:3px" value="${val||''}"
-      onchange="updateHistSet('${date}','${exId}',${si},'${field}',this.value)">`;
+  state._editDate=date;
+  // Rebuild with editable fields, delete buttons, and add buttons
+  const el=document.getElementById('hist-list');
+  let html=`<button class="btn btn-g" style="margin-bottom:12px;padding:8px;border-radius:9px" onclick="showHistDetail('${date}')">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Abbrechen
+  </button>`;
+  html+=`<div class="card" style="margin-bottom:14px${w?';border-top:2px solid '+w.color:''}">
+    <div style="margin-bottom:10px">
+      <div class="heading" style="font-size:20px">${fmtDate(date)} — Bearbeiten</div>
+      <div style="font-size:12px;color:var(--muted)">${w.name} ${w.label} — ${w.subtitle}</div>
+    </div>`;
+  w.exercises.forEach(ex=>{
+    const sets=e.sets[ex.id]||[];
+    html+=`<div style="padding:10px 0;border-top:1px solid var(--border)" id="edit-ex-${ex.id}">
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px">${ex.name}</div>
+      <div style="display:grid;grid-template-columns:26px 1fr 1fr 55px 30px;gap:4px;font-size:11px;color:var(--muted);margin-bottom:4px">
+        <div>#</div><div>Reps</div><div>Gewicht</div><div>Seite</div><div></div>
+      </div>`;
+    sets.forEach((s,i)=>{
+      html+=`<div style="display:grid;grid-template-columns:26px 1fr 1fr 55px 30px;gap:4px;font-size:13px;padding:3px 0;border-top:1px solid var(--border);align-items:center" id="edit-set-${ex.id}-${i}">
+        <div style="font-size:11px;color:var(--muted);font-weight:700">${i+1}</div>
+        <input class="wi" style="width:100%;font-size:12px;padding:4px" value="${s.reps||''}" data-edit="reps" data-exid="${ex.id}" data-si="${i}">
+        <input class="wi" style="width:100%;font-size:12px;padding:4px" value="${s.weight||''}" data-edit="weight" data-exid="${ex.id}" data-si="${i}" placeholder="BW">
+        <select class="wi" style="font-size:11px;padding:3px" data-edit="side" data-exid="${ex.id}" data-si="${i}">
+          <option value=""${!s.side?' selected':''}>—</option>
+          <option value="L"${s.side==='L'?' selected':''}>Links</option>
+          <option value="R"${s.side==='R'?' selected':''}>Rechts</option>
+        </select>
+        <button onclick="deleteHistSet('${date}','${ex.id}',${i})" style="background:none;border:none;cursor:pointer;padding:2px" title="Satz löschen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>`;
+    });
+    html+=`<button onclick="addHistSet('${date}','${ex.id}')" class="btn btn-g" style="margin-top:6px;padding:5px 10px;font-size:11px;width:100%;border-radius:8px">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Satz hinzufügen
+    </button>`;
+    html+=`</div>`;
   });
-  // Button ändern
-  const btns=document.querySelectorAll('.btn-s.btn-full');
-  const lastBtn=btns[btns.length-1];
-  if(lastBtn)lastBtn.outerHTML=`<button class="btn btn-e btn-full" style="margin-bottom:20px" onclick="saveHistEntry('${date}')">
+  html+=`</div>`;
+  html+=`<button class="btn btn-e btn-full" style="margin-bottom:20px" onclick="saveHistEdits('${date}')">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
     Änderungen speichern
   </button>`;
+  el.innerHTML=html;
 }
 
-function updateHistSet(date,exId,si,field,val) {
+function deleteHistSet(date,exId,si) {
   const log=getLog(state.user);
-  if(log[date]&&log[date].sets[exId]&&log[date].sets[exId][si]){
-    log[date].sets[exId][si][field]=field==='reps'?parseInt(val)||0:parseFloat(val)||0;
+  if(log[date]&&log[date].sets[exId]){
+    log[date].sets[exId].splice(si,1);
     saveLog(state.user,log);
+    editHistEntry(date);
   }
 }
 
-function saveHistEntry(date) {
+function addHistSet(date,exId) {
   const log=getLog(state.user);
+  if(log[date]){
+    if(!log[date].sets[exId])log[date].sets[exId]=[];
+    log[date].sets[exId].push({reps:0,weight:0,done:true,side:''});
+    saveLog(state.user,log);
+    editHistEntry(date);
+  }
+}
+
+function saveHistEdits(date) {
+  const log=getLog(state.user);
+  document.querySelectorAll('[data-edit]').forEach(el=>{
+    const exId=el.dataset.exid,si=parseInt(el.dataset.si),field=el.dataset.edit;
+    if(log[date]&&log[date].sets[exId]&&log[date].sets[exId][si]){
+      if(field==='reps')log[date].sets[exId][si].reps=parseInt(el.value)||0;
+      else if(field==='weight')log[date].sets[exId][si].weight=parseFloat(el.value)||0;
+      else if(field==='side')log[date].sets[exId][si].side=el.value||undefined;
+    }
+  });
   saveLog(state.user,log);
   if(hasSb())sbSaveEntry(state.user,date,log[date]);
   showToast('Training aktualisiert');
