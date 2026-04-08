@@ -1386,9 +1386,10 @@ async function runAI() {
     plannedWeight:getCW(state.user,ex.id,ex.weight),
     completedSets:(state.sets[ex.id]||[]).filter(s=>s.done).length,
     rating:state.ratings[ex.id]||'not_rated',
-    setWeights:(state.sets[ex.id]||[]).map(s=>s.weight)
+    setWeights:(state.sets[ex.id]||[]).map(s=>s.weight),
+    setDetails:(state.sets[ex.id]||[]).filter(s=>s.done).map(s=>`${s.reps}x${s.weight||'BW'}kg${s.side?' ('+s.side+')':''}`).join(', ')
   }));
-  const sys=`Du bist ein professioneller Kraftsport-Coach. Analysiere das Training präzise und motivierend auf Deutsch. Antworte AUSSCHLIESSLICH mit validem JSON (keine Backticks). Schema:
+  const sys=`Du bist ein professioneller Kraftsport-Coach. Analysiere das Training präzise und motivierend auf Deutsch. WICHTIG: Wenn du Links/Rechts-Asymmetrien in den Satzdaten siehst (L/R markiert), gehe explizit darauf ein mit konkreten Empfehlungen zum Ausgleich. Antworte AUSSCHLIESSLICH mit validem JSON (keine Backticks). Schema:
 {"summary":"string","adjustments":[{"exerciseId":"string","exerciseName":"string","currentWeight":number,"recommendedWeight":number,"direction":"increase"|"decrease"|"hold","reason":"string"}],"tips":["string","string"],"encouragement":"string"}`;
   const msg=`Athletenprofil: ${plan.profile?.weight||85}kg, Ziel: ${plan.profile?.goal}, Verletzungshistorie: ${plan.profile?.injuries}
 Training: ${w.name} ${w.label} — ${w.subtitle}
@@ -1592,22 +1593,64 @@ function showHistDetail(date) {
           <div>#</div><div>Reps</div><div>Gewicht</div><div></div>
         </div>`;
       sets.forEach((s,i)=>{
+        const sideTag=s.side?`<span style="font-size:9px;font-weight:700;color:${s.side==='L'?'var(--sky)':'var(--amber)'};margin-left:4px">${s.side}</span>`:'';
         html+=`<div style="display:grid;grid-template-columns:30px 1fr 1fr 30px;gap:4px;font-size:13px;padding:3px 0;border-top:1px solid var(--border)" id="hist-set-${ex.id}-${i}">
           <div style="font-size:11px;color:var(--muted);font-weight:700">${i+1}</div>
-          <div class="hist-val" data-field="reps" data-exid="${ex.id}" data-si="${i}">${s.reps||'—'}</div>
+          <div class="hist-val" data-field="reps" data-exid="${ex.id}" data-si="${i}">${s.reps||'—'}${sideTag}</div>
           <div class="hist-val" data-field="weight" data-exid="${ex.id}" data-si="${i}">${s.weight?s.weight+' kg':'BW'}</div>
           <div>${s.done?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'}</div>
         </div>`;
       });
+      // L/R Asymmetrie-Hinweis
+      const lSets=sets.filter(s=>s.side==='L'&&s.done);
+      const rSets=sets.filter(s=>s.side==='R'&&s.done);
+      if(lSets.length&&rSets.length){
+        const lTotal=lSets.reduce((a,s)=>a+s.reps,0);
+        const rTotal=rSets.reduce((a,s)=>a+s.reps,0);
+        if(lTotal!==rTotal){
+          const diff=Math.abs(lTotal-rTotal);const stronger=rTotal>lTotal?'Rechts':'Links';
+          html+=`<div style="font-size:11px;color:var(--amber);margin-top:4px;padding:6px 8px;background:var(--al);border-radius:8px">⚠️ Asymmetrie: ${stronger} stärker (${Math.max(lTotal,rTotal)} vs ${Math.min(lTotal,rTotal)} Reps)</div>`;
+        }
+      }
       html+=`</div>`;
     });
   }
-  // KI-Analyse falls vorhanden
+  // KI-Analyse
   if(e.analysis){
-    html+=`<div style="padding:10px 0;border-top:1px solid var(--border)">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">KI-Analyse</div>
-      <div style="font-size:13px;line-height:1.6">${e.analysis.summary||''}</div>
-      ${e.analysis.encouragement?`<div style="font-size:12px;font-style:italic;color:var(--amber);margin-top:6px">"${e.analysis.encouragement}"</div>`:''}
+    const isAlex=state.user==='alex';
+    const coachName=isAlex?'🦾 Eisenbruder':'💪 Dein Trainer';
+    const coachColor=isAlex?'var(--purple)':'var(--emerald)';
+    const coachBg=isAlex?'rgba(139,92,246,.08)':'rgba(16,185,129,.08)';
+    const coachBorder=isAlex?'rgba(139,92,246,.2)':'rgba(16,185,129,.2)';
+    html+=`<div class="ai-card" style="margin-top:10px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--purple)"></div>
+        <span style="font-size:11px;color:var(--muted)">KI-Coach Analyse</span>
+      </div>
+      <div style="font-size:13px;line-height:1.7;margin-bottom:10px">${e.analysis.summary||''}</div>
+      ${e.analysis.adjustments?.length?`
+        <div class="div"></div>
+        <div class="label" style="margin-bottom:8px">Gewichtsempfehlungen</div>
+        ${e.analysis.adjustments.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+          <div><div style="font-size:13px;font-weight:600">${a.exerciseName}</div><div style="font-size:11px;color:var(--muted)">${a.reason}</div></div>
+          <div style="text-align:right;margin-left:12px">
+            <div style="font-size:10px;color:var(--muted)">${a.currentWeight} kg →</div>
+            <div style="font-size:13px;font-weight:700;color:${a.direction==='increase'?'var(--emerald)':a.direction==='decrease'?'var(--red)':'var(--sec)'}">${a.recommendedWeight} kg</div>
+          </div>
+        </div>`).join('')}`:''}
+      ${e.analysis.tips?.length?`<div class="div"></div>${e.analysis.tips.map(t=>`<div style="font-size:12px;color:var(--sec);line-height:1.6;margin-bottom:3px">· ${t}</div>`).join('')}`:''}
+      ${e.analysis.encouragement?`<div style="margin-top:10px;padding:12px;background:${coachBg};border-radius:10px;border:1px solid ${coachBorder}">
+        <div style="font-size:11px;font-weight:700;color:${coachColor};margin-bottom:4px">${coachName}</div>
+        <div style="font-size:13px;font-style:italic;line-height:1.6">"${e.analysis.encouragement}"</div>
+      </div>`:''}
+    </div>`;
+  } else {
+    html+=`<div style="padding:12px 0;border-top:1px solid var(--border)">
+      <button class="btn btn-p btn-full" id="hist-ai-btn" onclick="runHistAI('${date}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/></svg>
+        KI-Analyse nachträglich starten
+      </button>
+      <div id="hist-ai-res" style="display:none;margin-top:10px"></div>
     </div>`;
   }
   html+=`</div>`;
@@ -1617,6 +1660,45 @@ function showHistDetail(date) {
     Training bearbeiten
   </button>`;
   el.innerHTML=html;
+}
+
+async function runHistAI(date) {
+  const plan=getPlan(state.user);const log=getLog(state.user);const e=log[date];
+  if(!e)return;const w=plan?.workouts?.[e.workoutIndex];if(!w)return;
+  const btn=document.getElementById('hist-ai-btn');const res=document.getElementById('hist-ai-res');
+  btn.innerHTML=`<div class="spinner"></div> KI analysiert...`;btn.disabled=true;
+  const exData=w.exercises.map(ex=>{
+    const sets=e.sets[ex.id]||[];
+    // L/R Asymmetrie-Daten mitgeben
+    const lSets=sets.filter(s=>s.side==='L'&&s.done);
+    const rSets=sets.filter(s=>s.side==='R'&&s.done);
+    let sideNote='';
+    if(lSets.length&&rSets.length){
+      const lT=lSets.reduce((a,s)=>a+s.reps,0);const rT=rSets.reduce((a,s)=>a+s.reps,0);
+      if(lT!==rT)sideNote=` ASYMMETRIE: Links ${lT} Reps, Rechts ${rT} Reps total`;
+    }
+    return {id:ex.id,name:ex.name,plannedSets:ex.sets,plannedReps:ex.reps||ex.duration+'s',
+      plannedWeight:ex.weight,completedSets:sets.filter(s=>s.done).length,
+      actualSets:sets.filter(s=>s.done).map(s=>`${s.reps}x${s.weight||'BW'}kg${s.side?' ('+s.side+')':''}`).join(', '),
+      sideNote};
+  });
+  const sys=`Du bist ein professioneller Kraftsport-Coach. Analysiere das Training präzise und motivierend auf Deutsch. WICHTIG: Wenn du Links/Rechts-Asymmetrien siehst, gehe explizit darauf ein mit konkreten Empfehlungen. Antworte AUSSCHLIESSLICH mit validem JSON (keine Backticks). Schema:
+{"summary":"string","adjustments":[{"exerciseId":"string","exerciseName":"string","currentWeight":number,"recommendedWeight":number,"direction":"increase"|"decrease"|"hold","reason":"string"}],"tips":["string","string"],"encouragement":"string"}`;
+  const msg=`Athletenprofil: ${plan.profile?.weight||85}kg, Ziel: ${plan.profile?.goal}, Verletzungshistorie: ${plan.profile?.injuries}
+Training: ${w.name} ${w.label} — ${w.subtitle} (${date})
+Daten: ${JSON.stringify(exData)}`;
+  try {
+    const r=await fetch(`${SB.url}/functions/v1/ai-coach`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({max_tokens:1200,system:sys,messages:[{role:'user',content:msg}]})});
+    const data=await r.json();const raw=data.content[0].text.replace(/```json|```/g,'').trim();const p=JSON.parse(raw);
+    log[date].analysis=p;saveLog(state.user,log);
+    if(hasSb())sbSaveEntry(state.user,date,log[date]);
+    showToast('Analyse gespeichert');
+    showHistDetail(date);
+  } catch(err){
+    console.error(err);
+    btn.innerHTML='Fehler — erneut versuchen';btn.disabled=false;
+    res.style.display='block';res.innerHTML=`<div style="font-size:12px;color:var(--red)">KI nicht erreichbar. Bitte in 1 Min nochmal probieren.</div>`;
+  }
 }
 
 function editHistEntry(date) {
