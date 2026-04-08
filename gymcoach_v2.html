@@ -129,12 +129,38 @@
     .ri{width:48px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:7px;padding:6px 4px;color:var(--text);font-family:inherit;font-size:13px;font-weight:700;text-align:center;outline:none;transition:border-color .2s}
     .ri:focus{border-color:var(--emerald)}
     .ri:disabled{opacity:.3}
+    /* Rest Timer */
+    #rest-timer{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);background:rgba(16,185,129,.95);backdrop-filter:blur(8px);border-radius:999px;padding:8px 20px;display:none;align-items:center;gap:14px;z-index:90;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+    #rest-timer.active{display:flex}
+    #rest-timer .rest-time{font-size:22px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;min-width:36px;text-align:center}
+    #rest-timer .rest-skip{background:rgba(255,255,255,.2);border:none;color:#fff;font-family:inherit;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;cursor:pointer}
+    #rest-timer .rest-skip:active{background:rgba(255,255,255,.35)}
+    #rest-timer .rest-presets{display:flex;gap:4px}
+    #rest-timer .rest-preset{background:rgba(255,255,255,.15);border:none;color:rgba(255,255,255,.7);font-family:inherit;font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;cursor:pointer}
+    #rest-timer .rest-preset.active{background:rgba(255,255,255,.3);color:#fff}
+    /* PR Glow */
+    @keyframes prGlow{0%{box-shadow:0 0 0 0 rgba(245,158,11,.4)}70%{box-shadow:0 0 0 10px rgba(245,158,11,0)}100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}}
+    .pr-set{animation:prGlow 1s ease}
+    /* Superset */
+    .superset-group{position:relative;margin-left:0}
+    .superset-link{position:relative;margin-left:18px;padding-left:14px;border-left:2px solid var(--purple)}
+    .superset-badge{position:absolute;left:-28px;top:50%;transform:translateY(-50%) rotate(-90deg);font-size:8px;font-weight:800;letter-spacing:.1em;color:var(--purple);text-transform:uppercase;white-space:nowrap}
   </style>
 </head>
 <body>
 <div class="ambient"></div>
 <div id="app">
   <div id="toast"></div>
+  <!-- Rest Timer -->
+  <div id="rest-timer">
+    <div class="rest-time" id="rest-time-display">90</div>
+    <div class="rest-presets">
+      <button class="rest-preset" onclick="setRestDuration(60)">60s</button>
+      <button class="rest-preset active" onclick="setRestDuration(90)">90s</button>
+      <button class="rest-preset" onclick="setRestDuration(120)">120s</button>
+    </div>
+    <button class="rest-skip" onclick="skipRest()">Skip</button>
+  </div>
 
   <!-- Supabase Config Sheet -->
   <div id="sb-config-overlay">
@@ -216,6 +242,7 @@
     </div>
     <div class="cx">
       <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px" id="week-strip"></div>
+      <div id="bw-card" class="card" style="margin-bottom:16px;padding:14px"></div>
       <div style="margin-bottom:16px" id="today-card"></div>
       <div style="display:flex;gap:12px;margin-bottom:16px">
         <div class="sc">
