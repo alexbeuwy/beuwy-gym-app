@@ -232,6 +232,17 @@
         </button>
       </div>
     </div>
+    <div id="resume-banner" style="display:none;background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(16,185,129,.1));border:1px solid rgba(139,92,246,.3);border-radius:12px;padding:12px;margin-bottom:12px;cursor:pointer" onclick="resumeActiveWorkout()">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div>
+          <div style="font-size:11px;color:var(--purple);font-weight:700;margin-bottom:2px">▶ AKTIVES TRAINING</div>
+          <div id="resume-text" style="font-size:13px;font-weight:600">Fortsetzen...</div>
+        </div>
+        <button onclick="event.stopPropagation();if(confirm('Aktives Training verwerfen?')){clearActive();loadDashboard();}" style="background:none;border:none;cursor:pointer;padding:4px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
     <div id="sb-banner" class="sb-banner">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       <div style="flex:1">
@@ -775,45 +786,141 @@ function getCW(u,exId,fallback) { const h=ls.get(`w_${u}_${exId}`,null); return 
 function saveW(u,exId,w) { const h=ls.get(`w_${u}_${exId}`,[]);h.push(w);ls.set(`w_${u}_${exId}`,h); }
 
 // ── REST TIMER (Feature 1) ────────────────────────────────────
-let restInterval=null;let restSeconds=0;let restDefault=90;
+let restInterval=null;let restStartTs=0;let restTotal=0;let restDefault=90;
+
+// ── ACTIVE WORKOUT PERSISTENCE (survives reload, tab switch, crash) ──
+function persistActive(){
+  if(!state.user||!state.startTime)return;
+  try{
+    localStorage.setItem('gc.active.'+state.user,JSON.stringify({
+      wIdx:state.wIdx,sets:state.sets,ratings:state.ratings,actualW:state.actualW,
+      notes:state.notes,startTime:state.startTime,pauseOffset:state.pauseOffset,
+      timerPaused:state.timerPaused,pauseStart:state.pauseStart,
+      restStartTs,restTotal,restDefault,ts:Date.now()
+    }));
+  }catch(e){console.warn('persistActive failed',e);}
+}
+function loadActive(user){
+  try{
+    const raw=localStorage.getItem('gc.active.'+user);if(!raw)return null;
+    const a=JSON.parse(raw);
+    // Stale: older than 18 hours = drop
+    if(Date.now()-a.ts>18*3600*1000){localStorage.removeItem('gc.active.'+user);return null;}
+    return a;
+  }catch(e){return null;}
+}
+function clearActive(){
+  if(!state.user)return;
+  try{localStorage.removeItem('gc.active.'+state.user);}catch(e){}
+}
+function resumeActiveWorkout(){
+  const a=loadActive(state.user);if(!a)return false;
+  const plan=getPlan(state.user);const w=plan?.workouts?.[a.wIdx];if(!w)return false;
+  state.wIdx=a.wIdx;state.sets=a.sets||{};state.ratings=a.ratings||{};
+  state.actualW=a.actualW||{};state.notes=a.notes||{};
+  state.startTime=a.startTime;state.pauseOffset=a.pauseOffset||0;
+  state.timerPaused=a.timerPaused||false;state.pauseStart=a.pauseStart||0;
+  restStartTs=a.restStartTs||0;restTotal=a.restTotal||0;
+  if(a.restDefault)restDefault=a.restDefault;
+  document.getElementById('wt').textContent=`${w.name} ${w.label}`;
+  document.getElementById('wt-sub').textContent=w.subtitle;
+  renderExercises(w);updateProgress(w);
+  clearInterval(state.ti);
+  state.ti=setInterval(()=>{
+    if(state.timerPaused)return;
+    const s=Math.floor((Date.now()-state.startTime-state.pauseOffset)/1000);
+    document.getElementById('wt-timer').textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  },1000);
+  // Tick once immediately so display is correct
+  const s=Math.floor((Date.now()-state.startTime-state.pauseOffset)/1000);
+  document.getElementById('wt-timer').textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  // Resume rest timer if it was running
+  if(restStartTs&&restTotal){
+    const elapsed=Math.floor((Date.now()-restStartTs)/1000);
+    if(elapsed<restTotal){
+      // Still running — restart the tick
+      const el=document.getElementById('rest-timer');
+      const disp=document.getElementById('rest-time-display');
+      el.classList.add('active');
+      disp.textContent=restTotal-elapsed;
+      el.querySelectorAll('.rest-preset').forEach(b=>{b.classList.toggle('active',parseInt(b.textContent)===restDefault);});
+      restInterval=setInterval(restTick,250);
+    } else {
+      restStartTs=0;restTotal=0;
+    }
+  }
+  showScreen('workout');
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.getElementById('nav-workout').classList.add('active');
+  showToast('Training fortgesetzt');
+  return true;
+}
 const BEEP_SRC='data:audio/wav;base64,UklGRl9vT19teleXBERhdGFhdGEBAQEBAQEBAQEBAQEBAQE=';
 
-function startRestTimer(seconds) {
-  if(restInterval)clearInterval(restInterval);
-  restSeconds=seconds||restDefault;
+function restTick(){
   const el=document.getElementById('rest-timer');
   const disp=document.getElementById('rest-time-display');
-  disp.textContent=restSeconds;
-  el.classList.add('active');
-  // Update preset buttons
-  el.querySelectorAll('.rest-preset').forEach(b=>{b.classList.toggle('active',parseInt(b.textContent)===restDefault);});
-  restInterval=setInterval(()=>{
-    restSeconds--;
-    disp.textContent=restSeconds;
-    if(restSeconds<=0){
-      clearInterval(restInterval);restInterval=null;
-      el.classList.remove('active');
-      try{const a=new Audio();a.src='data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkZeWj4F0aGRmaXJ/ipOZnZiQgXJlXl1ibXqIk5mblI2BdGhiYWdyfIqUmpuUjIF0Z2FhZ3N+i5WamZKLf3JmYWJod4KNl5qYkYd6bmVhZGp4g46Wl5WOhHhsZWJlbHmFkJeXlI2Dd2xkY2ZueYaRl5eTjIJ3bGRjZm15hpGXl5OMgndtZGRmbnmGkZaXk4yCeG1kZGdueYaQlZeTjIJ4bWVkZ295hpCVl5OLgnhtZWRnb3mGkJWXk4uCeG5lZGdveYWPlJaTi4F4bmVlZ3B5hY+UlZOKgXhuZmVncHmFjpOUkoqBeG5mZmhxeYWOk5SSiYB4b2ZmaHF5hI6Tk5KJgHhvZ2docXmEjpKTkomAeG9namhxeYSOkpOSiIB4cGdqaXJ5hI2Rk5GIf3hwaGppc3mEjZGRkYh/eHBpampzeYOMkJCQh354cWpqanN5g4yQkJCHfnhxampqc3mDjJCQkIZ+eHFqa2pzeIKMj4+QiH94cWpranthGGMj4+PaWwzJSkuN0RWZ3h/fnVpXVZWXWx9jpaWkImAd3BtcHd/hoyQkIuFfndzcXJ2fIOJjY6NiYR/e3h3d3l+g4iLjIuIhYB9enl5en6Dh4qLioeEgH17enp7foKGiYqJh4N/fHt7e3x/goWHiIeGg398fHt8fH+ChYeHhoWCf3x8fH19gIKEhoaFhIJ/fX19fn6AgoSFhYSDgX99fX5+f4GDhIWEg4KAfn5+fn+AgYOEhIOCgX9+fn5/gIGCg4ODgoGAfn5/f4CAgYKDg4KBgH9+f3+AgIGCgoKCgYB/f39/gIGBgoKCgYGAf39/f4CBgYKCgoGBgH9/f3+AgYGBgoKBgYB/f39/gIGBgYKCgYGAf3+Af4CAgYGCgoGBgIB/f4CAgICBgYGBgYGAf3+AgICAgYGBgYGBgH9/gICAgIGBgYGBgYB/f4CAgICBgYGBgYCAf3+AgICAgIGBgYGBgH9/gICAgICBgYGBgYCAf4CAgICAgIGBgYGAgH9/gICAgICBgYGBgICAf3+AgICAgIGBgYGAgH9/gICAgA==';a.volume=0.5;a.play();}catch(e){}
-      showToast('Pause vorbei!');
-    }
-  },1000);
+  if(!restStartTs||!restTotal){
+    if(restInterval){clearInterval(restInterval);restInterval=null;}
+    el.classList.remove('active');return;
+  }
+  const elapsed=Math.floor((Date.now()-restStartTs)/1000);
+  const remaining=restTotal-elapsed;
+  if(remaining<=0){
+    clearInterval(restInterval);restInterval=null;
+    el.classList.remove('active');
+    disp.textContent=0;
+    restStartTs=0;restTotal=0;persistActive();
+    try{const a=new Audio();a.src='data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkZeWj4F0aGRmaXJ/ipOZnZiQgXJlXl1ibXqIk5mblI2BdGhiYWdyfIqUmpuUjIF0Z2FhZ3N+i5WamZKLf3JmYWJod4KNl5qYkYd6bmVhZGp4g46Wl5WOhHhsZWJlbHmFkJeXlI2Dd2xkY2ZueYaRl5eTjIJ3bGRjZm15hpGXl5OMgndtZGRmbnmGkZaXk4yCeG1kZGdueYaQlZeTjIJ4bWVkZ295hpCVl5OLgnhtZWRnb3mGkJWXk4uCeG5lZGdveYWPlJaTi4F4bmVlZ3B5hY+UlZOKgXhuZmVncHmFjpOUkoqBeG5mZmhxeYWOk5SSiYB4b2ZmaHF5hI6Tk5KJgHhvZ2docXmEjpKTkomAeG9namhxeYSOkpOSiIB4cGdqaXJ5hI2Rk5GIf3hwaGppc3mEjZGRkYh/eHBpampzeYOMkJCQh354cWpqanN5g4yQkJCHfnhxampqc3mDjJCQkIZ+eHFqa2pzeIKMj4+QiH94cWpranthGGMj4+PaWwzJSkuN0RWZ3h/fnVpXVZWXWx9jpaWkImAd3BtcHd/hoyQkIuFfndzcXJ2fIOJjY6NiYR/e3h3d3l+g4iLjIuIhYB9enl5en6Dh4qLioeEgH17enp7foKGiYqJh4N/fHt7e3x/goWHiIeGg398fHt8fH+ChYeHhoWCf3x8fH19gIKEhoaFhIJ/fX19fn6AgoSFhYSDgX99fX5+f4GDhIWEg4KAfn5+fn+AgYOEhIOCgX9+fn5/gIGCg4ODgoGAfn5/f4CAgYKDg4KBgH9+f3+AgIGCgoKCgYB/f39/gIGBgoKCgYGAf39/f4CBgYKCgoGBgH9/f3+AgYGBgoKBgYB/f39/gIGBgYKCgYGAf3+Af4CAgYGCgoGBgIB/f4CAgICBgYGBgYGAf3+AgICAgYGBgYGBgH9/gICAgIGBgYGBgYB/f4CAgICBgYGBgYCAf3+AgICAgIGBgYGBgH9/gICAgICBgYGBgYCAf4CAgICAgIGBgYGAgH9/gICAgICBgYGBgICAf3+AgICAgIGBgYGAgH9/gICAgA==';a.volume=0.5;a.play();}catch(e){}
+    showToast('Pause vorbei!');
+    return;
+  }
+  disp.textContent=remaining;
 }
 
-function skipRest() {
+function startRestTimer(seconds){
   if(restInterval)clearInterval(restInterval);
-  restInterval=null;
-  document.getElementById('rest-timer').classList.remove('active');
+  restTotal=seconds||restDefault;
+  restStartTs=Date.now();
+  const el=document.getElementById('rest-timer');
+  const disp=document.getElementById('rest-time-display');
+  disp.textContent=restTotal;
+  el.classList.add('active');
+  el.querySelectorAll('.rest-preset').forEach(b=>{b.classList.toggle('active',parseInt(b.textContent)===restDefault);});
+  restInterval=setInterval(restTick,250);
+  persistActive();
 }
 
-function setRestDuration(s) {
+function skipRest(){
+  if(restInterval)clearInterval(restInterval);
+  restInterval=null;restStartTs=0;restTotal=0;
+  document.getElementById('rest-timer').classList.remove('active');
+  persistActive();
+}
+
+function setRestDuration(s){
   restDefault=s;
   const el=document.getElementById('rest-timer');
   el.querySelectorAll('.rest-preset').forEach(b=>{b.classList.toggle('active',parseInt(b.textContent)===s);});
-  if(restInterval){
-    clearInterval(restInterval);
-    startRestTimer(s);
+  if(restInterval&&restStartTs){
+    // Additive: keep elapsed, adjust total. switching 60→90 with 30s elapsed = 60s remaining
+    restTotal=s;
+    restTick();
+    persistActive();
   }
 }
+
+// Re-render rest timer immediately when tab becomes visible (browsers throttle setInterval in background)
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden){
+    if(restInterval)restTick();
+    if(state.ti&&state.startTime){
+      const s=Math.floor((Date.now()-state.startTime-state.pauseOffset)/1000);
+      const el=document.getElementById('wt-timer');
+      if(el)el.textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+    }
+  }
+});
 
 // ── LAST PERFORMANCE (Feature 2) ──────────────────────────────
 function getLastPerformance(user, exId) {
@@ -960,6 +1067,21 @@ async function selectUser(u) {
   }
   loadDashboard();
   navTo('dashboard');
+  // Auto-prompt to resume in-progress workout
+  const a=loadActive(state.user);
+  if(a){
+    const plan=getPlan(state.user);const w=plan?.workouts?.[a.wIdx];
+    if(w){
+      const mins=Math.floor((Date.now()-a.startTime-(a.pauseOffset||0))/60000);
+      if(confirm(`Aktives Training gefunden:\n${w.name} ${w.label} (${mins} Min)\n\nFortsetzen?`)){
+        resumeActiveWorkout();
+      } else {
+        clearActive();
+      }
+    } else {
+      clearActive();
+    }
+  }
 }
 
 // ── DASHBOARD ──────────────────────────────────────────────────
@@ -975,6 +1097,16 @@ function loadDashboard() {
   const streakEl=document.getElementById('streak-el');
   if(activeWeeks>4)streakEl.classList.add('hot');else streakEl.classList.remove('hot');
   if(!hasSb())document.getElementById('sb-banner').classList.add('show');
+  // Resume banner if active workout exists
+  const _act=loadActive(state.user);const _rb=document.getElementById('resume-banner');
+  if(_act&&plan.workouts?.[_act.wIdx]){
+    const _w=plan.workouts[_act.wIdx];
+    const _mins=Math.floor((Date.now()-_act.startTime-(_act.pauseOffset||0))/60000);
+    const _done=Object.values(_act.sets||{}).reduce((s,arr)=>s+arr.filter(x=>x.done).length,0);
+    const _total=_w.exercises.reduce((s,ex)=>s+ex.sets,0);
+    document.getElementById('resume-text').textContent=`${_w.name} ${_w.label} · ${_done}/${_total} Sätze · ${_mins} Min`;
+    _rb.style.display='block';
+  } else {_rb.style.display='none';}
   renderWeekStrip();renderBodyWeight();renderTodayCard(plan);renderStats(plan);renderWktBtns(plan);
   if(hasSb())setSyncDots('synced');
 }
@@ -1098,6 +1230,7 @@ function startWkt(idx) {
   const plan=getPlan(state.user);const w=plan.workouts[idx];
   state.wIdx=idx;state.sets={};state.ratings={};state.actualW={};state.notes={};
   state.timerPaused=false;state.pauseOffset=0;state.pauseStart=0;
+  restStartTs=0;restTotal=0;
   w.exercises.forEach(ex=>{
     const cw=getCW(state.user,ex.id,ex.weight);
     state.sets[ex.id]=Array.from({length:ex.sets},()=>({reps:ex.reps??null,weight:cw,done:false}));
@@ -1114,6 +1247,10 @@ function startWkt(idx) {
   showScreen('workout');
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   document.getElementById('nav-workout').classList.add('active');
+  persistActive();
+  // Safety net: persist every 5s in case any mutation slipped through
+  if(state._persistInterval)clearInterval(state._persistInterval);
+  state._persistInterval=setInterval(persistActive,5000);
 }
 
 function toggleTimer() {
@@ -1127,16 +1264,20 @@ function toggleTimer() {
     document.getElementById('wt-timer').style.opacity='.5';
     document.getElementById('wt-timer').textContent='⏸ '+document.getElementById('wt-timer').textContent.replace('⏸ ','');
   }
+  persistActive();
 }
 
 function confirmLeaveWorkout() {
   if(confirm('Training wirklich abbrechen? Fortschritt wird gespeichert.')) {
     clearInterval(state.ti);
+    if(state._persistInterval)clearInterval(state._persistInterval);
     const dur=Math.floor((Date.now()-state.startTime-state.pauseOffset)/60000);
     const log=getLog(state.user);
     log[today()]={workoutIndex:state.wIdx,sets:state.sets,duration:dur,completed:false,ts:Date.now(),notes:state.notes};
     saveLog(state.user,log);
     if(hasSb())sbSaveEntry(state.user,today(),log[today()]);
+    clearActive();
+    state.startTime=null;
     loadDashboard();navTo('dashboard');
     showToast('Fortschritt gespeichert');
   }
@@ -1220,10 +1361,10 @@ function renderExercises(w) {
           <div class="snum">${si+1}</div>
           <input class="ri" type="number" step="1" value="${set.reps??''}" placeholder="${isTime?ex.duration+'s':'—'}"
             ${isTime?'disabled':''}
-            onchange="state.sets['${ex.id}'][${si}].reps=parseInt(this.value)||0" onclick="this.select()">
+            onchange="state.sets['${ex.id}'][${si}].reps=parseInt(this.value)||0;persistActive()" onclick="this.select()">
           <input class="wi" type="number" step="0.5" value="${set.weight??''}" placeholder="${isTime||ex.weight===null?'—':'kg'}"
             ${isTime||ex.weight===null?'disabled':''}
-            onchange="state.sets['${ex.id}'][${si}].weight=parseFloat(this.value)||0" onclick="this.select()">
+            onchange="state.sets['${ex.id}'][${si}].weight=parseFloat(this.value)||0;persistActive()" onclick="this.select()">
           <input class="wi" type="number" step="0.5" placeholder="${isTime?'s':'kg'}"
             onchange="setAct('${ex.id}',${si},this.value)" onclick="this.select()">
           <div class="chk" id="chk-${ex.id}-${si}" onclick="toggleSet('${ex.id}',${si},event)">
@@ -1237,7 +1378,7 @@ function renderExercises(w) {
       <div id="note-${ex.id}" style="display:none;margin-top:6px">
         <textarea class="ifield" style="font-size:12px;min-height:50px;resize:vertical;width:100%"
           placeholder="Notizen zur Übung..."
-          onchange="state.notes['${ex.id}']=this.value">${state.notes[ex.id]||''}</textarea>
+          onchange="state.notes['${ex.id}']=this.value;persistActive()">${state.notes[ex.id]||''}</textarea>
       </div>
     </div>${ssGroupClose}`;
   }).join('');
@@ -1254,6 +1395,7 @@ function toggleSet(exId,si,evt) {
   chkEl.classList.toggle('done',s.done);
   const plan=getPlan(state.user);const w=plan.workouts[state.wIdx];
   updateProgress(w);
+  persistActive();
   // Confetti burst on completion
   if(s.done && evt) {
     spawnConfetti(chkEl);
@@ -1299,7 +1441,7 @@ function spawnConfetti(el) {
     setTimeout(()=>dot.remove(),700);
   }
 }
-function setAct(exId,si,v){if(!state.actualW[exId])state.actualW[exId]={};state.actualW[exId][si]=parseFloat(v)||0;}
+function setAct(exId,si,v){if(!state.actualW[exId])state.actualW[exId]={};state.actualW[exId][si]=parseFloat(v)||0;persistActive();}
 function updateProgress(w) {
   const total=w.exercises.reduce((s,ex)=>s+ex.sets,0);
   const done=Object.values(state.sets).reduce((s,sets)=>s+sets.filter(s=>s.done).length,0);
@@ -1311,11 +1453,13 @@ function updateProgress(w) {
 
 function finishWorkout() {
   clearInterval(state.ti);
+  if(state._persistInterval)clearInterval(state._persistInterval);
   const dur=Math.floor((Date.now()-state.startTime-state.pauseOffset)/60000);
   const log=getLog(state.user);
   log[today()]={workoutIndex:state.wIdx,sets:state.sets,duration:dur,completed:false,ts:Date.now(),notes:state.notes};
   saveLog(state.user,log);
   if(hasSb())sbSaveEntry(state.user,today(),log[today()]);
+  clearActive();
   renderFeedback();showScreen('feedback');
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   // KI-Analyse automatisch starten
@@ -1361,7 +1505,7 @@ function renderFeedback() {
 }
 
 function rate(exId,r) {
-  state.ratings[exId]=r;
+  state.ratings[exId]=r;persistActive();
   ['hard','ok','easy'].forEach(x=>{const b=document.getElementById(`r-${x}-${exId}`);if(b){b.className='rb';if(x===r)b.classList.add(`s${x[0]}`===r[0]?'s'+r[0]:'');b.className='rb';if(x===r)b.classList.add('s'+r[0]);}});
   // Fix: properly toggle classes
   ['hard','ok','easy'].forEach(x=>{
