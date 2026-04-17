@@ -278,34 +278,7 @@
       <div class="heading" style="margin-bottom:4px">Wer trainiert heute?</div>
       <div style="font-size:13px;color:var(--muted)">Wähle dein Profil</div>
     </div>
-    <div class="cx" style="display:flex;flex-direction:column;gap:12px">
-      <div class="uc fi" onclick="selectUser('alex')">
-        <div class="av" style="background:rgba(139,92,246,.14);color:var(--purple)">AP</div>
-        <div class="subheading" style="margin-bottom:4px">Alexander</div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Marathon-Training + Kraftaufbau</div>
-        <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
-          <span class="badge bp">PPL 3×/Woche</span>
-          <span class="badge ba">ACL-Rehab</span>
-          <span class="badge be">85 kg</span>
-        </div>
-      </div>
-      <div class="uc fi fi2" id="vicky-sel" onclick="selectUser('vicky')">
-        <div class="av" style="background:rgba(16,185,129,.14);color:var(--emerald)">V</div>
-        <div class="subheading" style="margin-bottom:4px">Vicky</div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:14px" id="vicky-sub">Bauch · Beine · Po · Wiedereinstieg</div>
-        <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap" id="vicky-bdg">
-          <span class="badge be">2×/Woche</span><span class="badge bp">Ganzkörper</span><span class="badge ba">56 kg</span>
-        </div>
-      </div>
-      <button class="btn btn-s" style="margin-top:4px" onclick="openSbConfig()">
-        <div class="sync-dot" id="user-sync-dot"></div>
-        <span id="user-sync-label">Cloud-Sync einrichten</span>
-      </button>
-      <button class="btn btn-g" style="margin-top:6px;font-size:12px" onclick="openAdmin()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Admin
-      </button>
-    </div>
+    <div class="cx" id="user-cards" style="display:flex;flex-direction:column;gap:12px"></div>
   </div>
 
   <!-- SCREEN: Admin -->
@@ -1331,7 +1304,166 @@ const VICKY_PLAN = {
   ]
 };
 
-function getPlan(u) { return u==='alex' ? ALEX_PLAN : (ls.get('vicky_plan',null) || VICKY_PLAN); }
+// ── USER REGISTRY ─────────────────────────────────────────────
+const USER_COLORS=['#8B5CF6','#10B981','#38BDF8','#F59E0B','#EF4444','#EC4899','#14B8A6','#F97316'];
+function getUsers(){
+  let users=ls.get('gc_users',null);
+  if(!users){
+    users=[
+      {id:'alex',name:'Alexander',initials:'AP',gender:'m',weight:85,height:183,goal:'Kraft aufbauen + Marathon-Ergänzung',injuries:'Kreuzbandriss links, Beine schwächer',gymDays:3,level:'intermediate',color:'#8B5CF6'},
+      {id:'vicky',name:'Vicky',initials:'V',gender:'w',weight:56,height:158,goal:'Bauch·Beine·Po · Wiedereinstieg',injuries:'Fußgelenk selten, schwache Unterarme, leichtes Lipödem',gymDays:2,level:'beginner',color:'#10B981'}
+    ];
+    ls.set('gc_users',users);
+  }
+  return users;
+}
+function saveUsers(users){ls.set('gc_users',users);}
+function getUser(id){return getUsers().find(u=>u.id===id);}
+function renderUserCards(){
+  const users=getUsers();const el=document.getElementById('user-cards');
+  el.innerHTML=users.map((u,i)=>{
+    const plan=getPlan(u.id);
+    const log=getLog(u.id);
+    const completed=Object.values(log).filter(e=>e?.completed).length;
+    const wktLabel=plan?plan.workouts.map(w=>w.name).join(' · '):'Kein Plan';
+    const genderIcon=u.gender==='w'?'♀':'♂';
+    const colorLight=u.color+'22';
+    return `<div class="uc fi fi${Math.min(i+1,6)}" onclick="selectUser('${u.id}')">
+      <div class="av" style="background:${colorLight};color:${u.color}">${u.initials}</div>
+      <div class="subheading" style="margin-bottom:4px">${u.name} <span style="font-size:11px;opacity:.5">${genderIcon}</span></div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">${u.goal||''}</div>
+      <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+        <span class="badge" style="background:${colorLight};color:${u.color}">${u.gymDays}×/Woche</span>
+        ${u.weight?`<span class="badge ba">${u.weight} kg</span>`:''}
+        ${completed?`<span class="badge be">${completed} Trainings</span>`:''}
+      </div>
+    </div>`;
+  }).join('')+`
+    <button class="btn btn-s btn-full" style="margin-top:4px" onclick="showAddUser()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Neuen Nutzer anlegen
+    </button>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn btn-s" style="flex:1" onclick="openSbConfig()">
+        <div class="sync-dot" id="user-sync-dot"></div>
+        <span id="user-sync-label">Cloud-Sync</span>
+      </button>
+      <button class="btn btn-g" style="padding:10px 14px" onclick="openAdmin()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Admin
+      </button>
+    </div>`;
+}
+
+// ── ADD USER FORM ─────────────────────────────────────────────
+function showAddUser(){
+  const el=document.getElementById('user-cards');
+  el.innerHTML=`
+    <button class="btn btn-g" style="margin-bottom:8px;padding:8px;border-radius:9px;align-self:flex-start" onclick="renderUserCards()">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Zurück
+    </button>
+    <div class="card" style="margin-bottom:14px">
+      <div class="heading" style="font-size:18px;margin-bottom:14px">Neuen Nutzer anlegen</div>
+      <div class="ig" style="margin-bottom:12px"><label class="label">Name</label><input type="text" class="ifield" id="nu-name" placeholder="z.B. Max"></div>
+      <div class="ig" style="margin-bottom:12px"><label class="label">Geschlecht</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-s" id="nu-g-m" style="flex:1;padding:10px" onclick="document.getElementById('nu-g-m').classList.add('btn-p');document.getElementById('nu-g-m').classList.remove('btn-s');document.getElementById('nu-g-w').classList.add('btn-s');document.getElementById('nu-g-w').classList.remove('btn-p');document.getElementById('nu-gender').value='m'">♂ Männlich</button>
+          <button class="btn btn-s" id="nu-g-w" style="flex:1;padding:10px" onclick="document.getElementById('nu-g-w').classList.add('btn-p');document.getElementById('nu-g-w').classList.remove('btn-s');document.getElementById('nu-g-m').classList.add('btn-s');document.getElementById('nu-g-m').classList.remove('btn-p');document.getElementById('nu-gender').value='w'">♀ Weiblich</button>
+          <input type="hidden" id="nu-gender" value="m">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div class="ig" style="flex:1"><label class="label">Gewicht (kg)</label><input type="number" class="ifield" id="nu-weight" placeholder="75"></div>
+        <div class="ig" style="flex:1"><label class="label">Größe (cm)</label><input type="number" class="ifield" id="nu-height" placeholder="180"></div>
+      </div>
+      <div class="ig" style="margin-bottom:12px"><label class="label">Ziel</label>
+        <select class="ifield" id="nu-goal">
+          <option value="Kraft aufbauen">Kraft aufbauen</option>
+          <option value="Muskelaufbau">Muskelaufbau (Hypertrophie)</option>
+          <option value="Straffen & Definieren">Straffen & Definieren</option>
+          <option value="Bauch·Beine·Po">Bauch · Beine · Po</option>
+          <option value="Allgemeine Fitness">Allgemeine Fitness</option>
+          <option value="Abnehmen + Muskelerhalt">Abnehmen + Muskelerhalt</option>
+        </select>
+      </div>
+      <div class="ig" style="margin-bottom:12px"><label class="label">Gym-Tage/Woche</label>
+        <select class="ifield" id="nu-days"><option value="2">2×/Woche</option><option value="3" selected>3×/Woche</option><option value="4">4×/Woche</option><option value="5">5×/Woche</option></select>
+      </div>
+      <div class="ig" style="margin-bottom:12px"><label class="label">Verletzungen / Einschränkungen</label><input type="text" class="ifield" id="nu-injuries" placeholder="z.B. Schulterprobleme — oder: keine"></div>
+      <div class="ig" style="margin-bottom:12px"><label class="label">Fitnesslevel</label>
+        <select class="ifield" id="nu-level">
+          <option value="beginner">Anfänger (unter 1 Jahr)</option>
+          <option value="intermediate" selected>Mittelstufe (1-3 Jahre)</option>
+          <option value="advanced">Fortgeschritten (3+ Jahre)</option>
+        </select>
+      </div>
+      <button class="btn btn-e btn-full" style="margin-top:8px" onclick="createUser()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Nutzer anlegen
+      </button>
+    </div>`;
+}
+function createUser(){
+  const name=document.getElementById('nu-name').value.trim();
+  if(!name){showToast('Name eingeben');return;}
+  const gender=document.getElementById('nu-gender').value;
+  const weight=parseFloat(document.getElementById('nu-weight').value)||0;
+  const height=parseFloat(document.getElementById('nu-height').value)||0;
+  const goal=document.getElementById('nu-goal').value;
+  const gymDays=parseInt(document.getElementById('nu-days').value);
+  const injuries=document.getElementById('nu-injuries').value.trim();
+  const level=document.getElementById('nu-level').value;
+  const id=name.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,20);
+  const users=getUsers();
+  if(users.find(u=>u.id===id)){showToast('Nutzer mit ähnlichem Namen existiert bereits');return;}
+  const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||name[0].toUpperCase();
+  const color=USER_COLORS[users.length%USER_COLORS.length];
+  const newUser={id,name,initials,gender,weight,height,goal,injuries,gymDays,level,color};
+  users.push(newUser);
+  saveUsers(users);
+  // Create starter plan based on gender + level
+  const starterPlan=createStarterPlan(newUser);
+  if(starterPlan)ls.set(id+'_plan',starterPlan);
+  showToast(`${name} angelegt`);
+  renderUserCards();
+}
+function createStarterPlan(u){
+  if(u.gender==='w'){
+    const p=JSON.parse(JSON.stringify(VICKY_PLAN));
+    p.name=u.name;p.weight=u.weight||56;
+    p.profile={weight:u.weight||56,height:u.height||165,goal:u.goal,injuries:u.injuries||'keine',gymDays:u.gymDays,level:u.level};
+    if(u.gymDays>=3){
+      p.workouts.push({id:'v_full_c',name:'BBP-Day C',label:'C',subtitle:'Rücken · Schultern · Arme',
+        color:'#38BDF8',colorLight:'rgba(56,189,248,.14)',
+        exercises:[
+          {id:'v_latpull',name:'Latzug breit',equipment:'Kabelturm · Latzugstange',sets:3,reps:12,weight:15,notes:'Schulterblätter zuerst runter'},
+          {id:'v_cablerow',name:'Kabelrudern sitzend',equipment:'Kabelturm · V-Griff',sets:3,reps:12,weight:12,notes:'Zur Bauchnabel-Höhe ziehen'},
+          {id:'v_shldr_press',name:'Schulterdrücken',equipment:'Schulterpresse-Maschine',sets:3,reps:12,weight:8,notes:'Rücken am Polster'},
+          {id:'v_seitheben',name:'Seitheben am Kabel',equipment:'Kabelturm unten',sets:3,reps:12,weight:3,notes:'Nur bis Schulterhöhe'},
+          {id:'v_bizeps',name:'Bizeps-Curls',equipment:'Kurzhanteln',sets:3,reps:12,weight:4,notes:'Ellbogen fixiert'},
+          {id:'v_trizeps',name:'Trizeps-Pushdown',equipment:'Kabelturm · Seilgriff',sets:3,reps:12,weight:8,notes:'Volle Streckung unten'}
+        ]});
+    }
+    return p;
+  }
+  // Male: PPL starter
+  const p=JSON.parse(JSON.stringify(ALEX_PLAN));
+  p.name=u.name;p.weight=u.weight||80;
+  p.profile={weight:u.weight||80,goal:u.goal,injuries:u.injuries||'keine',gymDays:u.gymDays};
+  // Scale weights for beginners
+  if(u.level==='beginner'){
+    p.workouts.forEach(w=>w.exercises.forEach(ex=>{if(ex.weight)ex.weight=Math.round(ex.weight*0.6/2.5)*2.5;}));
+  }
+  return p;
+}
+
+function getPlan(u) {
+  const saved=ls.get(u+'_plan',null);
+  if(saved)return saved;
+  if(u==='alex')return ALEX_PLAN;
+  if(u==='vicky')return VICKY_PLAN;
+  return null;
+}
 function getLog(u)  { return ls.get(`log_${u}`,{}); }
 function saveLog(u,log) { ls.set(`log_${u}`,log); }
 function today() { return new Date().toISOString().split('T')[0]; }
@@ -2798,15 +2930,9 @@ Regeln: ${d} Trainingsblöcke (bei 2x Ganzkörper A+B, bei 3x Ganzkörper mit Sc
     const data=await r.json();const raw=data.content[0].text.replace(/```json|```/g,'').trim();const p=JSON.parse(raw);
     ls.set('vicky_plan',p);ls.set('vicky_profile',{w,l,g,d,i,f,h});
     if(hasSb())sbSavePlan('vicky',p,{});
-    updateVickyCard(p);showToast("Vicky's Plan erstellt!");
+    showToast("Vicky's Plan erstellt!");
     state.user='vicky';loadDashboard();navTo('dashboard');_vickyGenRunning=false;
   } catch(err){console.error(err);btn.innerHTML='Fehler — erneut versuchen';btn.disabled=false;showToast('Fehler beim Generieren');_vickyGenRunning=false;}
-}
-
-function updateVickyCard(plan) {
-  const sub=document.getElementById('vicky-sub');const bdg=document.getElementById('vicky-bdg');
-  if(sub)sub.textContent=plan.workouts.map(w=>w.name).join(' · ');
-  if(bdg)bdg.innerHTML=`<span class="badge be">${plan.workouts.length}× Split</span><span class="badge bp">KI-generiert</span>`;
 }
 
 // ── EXERCISE DETAIL MODAL ────────────────────────────────────────
@@ -3074,48 +3200,43 @@ function celebratePR(exId,pr){
 }
 
 // ── ADMIN AREA ───────────────────────────────────────────────────
-function openAdmin(){
-  renderAdmin();
-  showScreen('admin');
-}
+function openAdmin(){renderAdmin();showScreen('admin');}
 function renderAdmin(){
-  const alexPlan=ls.get('alex_plan',null)||ALEX_PLAN;
-  const vickyPlan=ls.get('vicky_plan',null);
-  const alexLog=ls.get('alex_log',{});
-  const vickyLog=ls.get('vicky_log',{});
-  const alexCount=Object.values(alexLog).filter(e=>e?.completed).length;
-  const vickyCount=Object.values(vickyLog).filter(e=>e?.completed).length;
-  const alexPRs=(alexLog._prs||[]).length;
+  const users=getUsers();
   const syncStatus=hasSb()?'<span class="badge be">Cloud aktiv</span>':'<span class="badge ba">Offline</span>';
   document.getElementById('admin-content').innerHTML=`
-    <!-- Nutzer -->
     <div class="card fi" style="margin-bottom:14px">
-      <div class="label" style="margin-bottom:10px">Nutzer</div>
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-        <div class="av" style="width:44px;height:44px;background:rgba(139,92,246,.14);color:var(--purple);font-size:16px">AP</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:700">Alexander</div>
-          <div style="font-size:11px;color:var(--muted)">${alexPlan.workouts.length}× Split · ${alexCount} Trainings · ${alexPRs} PRs</div>
-        </div>
-        <button class="btn btn-s" style="padding:6px 10px;font-size:11px" onclick="editPlan('alex')">Plan</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="label">Nutzer (${users.length})</div>
+        <button class="btn btn-s" style="padding:5px 10px;font-size:11px" onclick="showScreen('users');showAddUser()">+ Hinzufügen</button>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0">
-        <div class="av" style="width:44px;height:44px;background:rgba(16,185,129,.14);color:var(--emerald);font-size:16px">V</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:700">Vicky</div>
-          <div style="font-size:11px;color:var(--muted)">${vickyPlan?vickyPlan.workouts.length+'× Split · '+vickyCount+' Trainings':'Kein Plan'}</div>
-        </div>
-        <button class="btn btn-s" style="padding:6px 10px;font-size:11px" onclick="editPlan('vicky')">Plan</button>
-      </div>
+      ${users.map(u=>{
+        const plan=getPlan(u.id);const log=getLog(u.id);
+        const completed=Object.values(log).filter(e=>e?.completed).length;
+        const prs=(log._prs||[]).length;
+        const gIcon=u.gender==='w'?'♀':'♂';
+        return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--border)">
+          <div class="av" style="width:44px;height:44px;background:${u.color}22;color:${u.color};font-size:16px">${u.initials}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:700">${u.name} <span style="font-size:11px;opacity:.5">${gIcon}</span></div>
+            <div style="font-size:11px;color:var(--muted)">${plan?plan.workouts.length+'× Split · ':''} ${completed} Trainings · ${prs} PRs · ${u.weight||'?'}kg · ${u.level}</div>
+          </div>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-s" style="padding:5px 8px;font-size:10px" onclick="editPlan('${u.id}')">Plan</button>
+            <button class="btn btn-s" style="padding:5px 8px;font-size:10px" onclick="editUserProfile('${u.id}')">Profil</button>
+            <button class="btn btn-g" style="padding:5px 8px;font-size:10px;color:var(--red)" onclick="deleteUser('${u.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+          </div>
+        </div>`;
+      }).join('')}
     </div>
-    <!-- Cloud -->
     <div class="card fi fi2" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div class="label">Cloud</div>${syncStatus}
       </div>
       <button class="btn btn-s btn-full" onclick="openSbConfig()">Supabase-Verbindung</button>
     </div>
-    <!-- Daten Export/Import -->
     <div class="card fi fi3" style="margin-bottom:14px">
       <div class="label" style="margin-bottom:10px">Daten</div>
       <button class="btn btn-s btn-full" style="margin-bottom:8px" onclick="exportAllData()">
@@ -3127,17 +3248,12 @@ function renderAdmin(){
         JSON importieren
       </button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
-      <button class="btn btn-d btn-full" onclick="clearUserData()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
-        Alle lokalen Daten löschen
-      </button>
+      <button class="btn btn-d btn-full" onclick="clearUserData()">Alle lokalen Daten löschen</button>
     </div>
-    <!-- PR-Board -->
     <div class="card fi fi4" style="margin-bottom:14px">
-      <div class="label" style="margin-bottom:10px">PR-Board (Alex)</div>
+      <div class="label" style="margin-bottom:10px">PR-Board (alle Nutzer)</div>
       <div id="pr-board-content"></div>
     </div>
-    <!-- Stats -->
     <div class="card fi fi5" style="margin-bottom:14px">
       <div class="label" style="margin-bottom:10px">System</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -3155,49 +3271,109 @@ function renderAdmin(){
   renderPRBoard();
 }
 function renderPRBoard(){
-  const log=ls.get('alex_log',{});
-  const prs=log._prs||[];
+  const users=getUsers();
+  const allPRs=[];
+  users.forEach(u=>{
+    const log=getLog(u.id);
+    (log._prs||[]).forEach(pr=>allPRs.push({...pr,userName:u.name,userColor:u.color}));
+  });
   const el=document.getElementById('pr-board-content');
-  if(!prs.length){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:12px 0;text-align:center">Noch keine PRs. Gib alles im nächsten Training!</div>';return;}
-  const sorted=prs.sort((a,b)=>b.ts-a.ts).slice(0,10);
+  if(!allPRs.length){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:12px 0;text-align:center">Noch keine PRs</div>';return;}
+  const sorted=allPRs.sort((a,b)=>b.ts-a.ts).slice(0,15);
   el.innerHTML=sorted.map(pr=>{
     const ex=EXERCISE_DB[pr.exId];
     const typeLabel={weight:'Gewicht',volume:'Volumen','1rm':'1RM'}[pr.type];
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="width:28px;height:28px;border-radius:8px;background:rgba(245,158,11,.14);color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">🏆</div>
+      <div style="width:28px;height:28px;border-radius:8px;background:rgba(245,158,11,.14);color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:12px">🏆</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${ex?.variant?.split('(')[0].trim()||pr.exId}</div>
-        <div style="font-size:11px;color:var(--muted)">${typeLabel} +${pr.delta}kg · ${fmtDate(pr.date)}</div>
+        <div style="font-size:11px;color:var(--muted)"><span style="color:${pr.userColor};font-weight:600">${pr.userName}</span> · ${typeLabel} +${pr.delta}kg · ${fmtDate(pr.date)}</div>
       </div>
     </div>`;
   }).join('');
 }
+function editUserProfile(userId){
+  const users=getUsers();const u=users.find(x=>x.id===userId);if(!u)return;
+  const el=document.getElementById('admin-content');
+  el.innerHTML=`
+    <button class="btn btn-g" style="margin-bottom:12px;padding:8px;border-radius:9px" onclick="renderAdmin()">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Zurück
+    </button>
+    <div class="card" style="margin-bottom:14px">
+      <div class="heading" style="font-size:18px;margin-bottom:14px">${u.name} bearbeiten</div>
+      <div class="ig" style="margin-bottom:12px"><label class="label">Name</label><input type="text" class="ifield" id="eu-name" value="${u.name}"></div>
+      <div class="ig" style="margin-bottom:12px"><label class="label">Geschlecht</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn ${u.gender==='m'?'btn-p':'btn-s'}" id="eu-g-m" style="flex:1;padding:10px" onclick="document.getElementById('eu-g-m').className='btn btn-p';document.getElementById('eu-g-w').className='btn btn-s';document.getElementById('eu-gender').value='m'">♂ Männlich</button>
+          <button class="btn ${u.gender==='w'?'btn-p':'btn-s'}" id="eu-g-w" style="flex:1;padding:10px" onclick="document.getElementById('eu-g-w').className='btn btn-p';document.getElementById('eu-g-m').className='btn btn-s';document.getElementById('eu-gender').value='w'">♀ Weiblich</button>
+          <input type="hidden" id="eu-gender" value="${u.gender||'m'}">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div class="ig" style="flex:1"><label class="label">Gewicht</label><input type="number" class="ifield" id="eu-weight" value="${u.weight||''}"></div>
+        <div class="ig" style="flex:1"><label class="label">Größe</label><input type="number" class="ifield" id="eu-height" value="${u.height||''}"></div>
+      </div>
+      <div class="ig" style="margin-bottom:12px"><label class="label">Ziel</label><input type="text" class="ifield" id="eu-goal" value="${u.goal||''}"></div>
+      <div class="ig" style="margin-bottom:12px"><label class="label">Verletzungen</label><input type="text" class="ifield" id="eu-injuries" value="${u.injuries||''}"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div class="ig" style="flex:1"><label class="label">Gym-Tage</label>
+          <select class="ifield" id="eu-days">${[2,3,4,5].map(n=>`<option value="${n}"${u.gymDays===n?' selected':''}>${n}×</option>`).join('')}</select>
+        </div>
+        <div class="ig" style="flex:1"><label class="label">Level</label>
+          <select class="ifield" id="eu-level">
+            <option value="beginner"${u.level==='beginner'?' selected':''}>Anfänger</option>
+            <option value="intermediate"${u.level==='intermediate'?' selected':''}>Mittelstufe</option>
+            <option value="advanced"${u.level==='advanced'?' selected':''}>Fortgeschritten</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-e btn-full" onclick="saveUserProfile('${userId}')">Profil speichern</button>
+    </div>`;
+}
+function saveUserProfile(userId){
+  const users=getUsers();const idx=users.findIndex(x=>x.id===userId);if(idx<0)return;
+  users[idx].name=document.getElementById('eu-name').value.trim()||users[idx].name;
+  users[idx].gender=document.getElementById('eu-gender').value;
+  users[idx].weight=parseFloat(document.getElementById('eu-weight').value)||users[idx].weight;
+  users[idx].height=parseFloat(document.getElementById('eu-height').value)||users[idx].height;
+  users[idx].goal=document.getElementById('eu-goal').value.trim();
+  users[idx].injuries=document.getElementById('eu-injuries').value.trim();
+  users[idx].gymDays=parseInt(document.getElementById('eu-days').value);
+  users[idx].level=document.getElementById('eu-level').value;
+  users[idx].initials=users[idx].name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  saveUsers(users);
+  // Update plan profile if exists
+  const plan=ls.get(userId+'_plan',null);
+  if(plan){plan.name=users[idx].name;plan.weight=users[idx].weight;plan.profile={...plan.profile,weight:users[idx].weight,height:users[idx].height,goal:users[idx].goal,injuries:users[idx].injuries,gymDays:users[idx].gymDays,level:users[idx].level};ls.set(userId+'_plan',plan);}
+  showToast('Profil gespeichert');renderAdmin();
+}
+function deleteUser(userId){
+  if(userId==='alex'||userId==='vicky'){showToast('Kern-Nutzer können nicht gelöscht werden');return;}
+  if(!confirm(`${userId} wirklich löschen? Alle Trainingsdaten gehen verloren.`))return;
+  const users=getUsers().filter(u=>u.id!==userId);
+  saveUsers(users);
+  [userId+'_plan',userId+'_log',userId+'_weights',userId+'_bodyweight','gc.active.'+userId].forEach(k=>localStorage.removeItem(k));
+  showToast('Nutzer gelöscht');renderAdmin();
+}
 function editPlan(user){
-  const plan=user==='alex'?(ls.get('alex_plan',null)||ALEX_PLAN):ls.get('vicky_plan',null);
+  const plan=getPlan(user);
   if(!plan){showToast('Kein Plan vorhanden');return;}
   const current=JSON.stringify(plan,null,2);
-  const edited=prompt('Plan als JSON (VORSICHT: falsche JSON zerstört den Plan):',current);
+  const edited=prompt('Plan als JSON (VORSICHT bei fehlerhafter JSON):',current);
   if(edited===null||edited===current)return;
   try{
     const parsed=JSON.parse(edited);
     if(!parsed.workouts||!Array.isArray(parsed.workouts))throw new Error('Kein gültiger Plan');
-    ls.set(user+'_plan',parsed);
-    showToast(`${user}'s Plan aktualisiert`);
-    renderAdmin();
+    ls.set(user+'_plan',parsed);showToast('Plan aktualisiert');renderAdmin();
   }catch(e){alert('Ungültiges JSON: '+e.message);}
 }
 function exportAllData(){
-  const data={
-    version:2,
-    exported:new Date().toISOString(),
-    alex:{plan:ls.get('alex_plan',null),log:ls.get('alex_log',{}),weights:ls.get('alex_weights',{}),bodyweight:ls.get('alex_bodyweight',[])},
-    vicky:{plan:ls.get('vicky_plan',null),log:ls.get('vicky_log',{}),weights:ls.get('vicky_weights',{}),bodyweight:ls.get('vicky_bodyweight',[])}
-  };
+  const users=getUsers();const data={version:3,exported:new Date().toISOString(),users};
+  users.forEach(u=>{data[u.id]={plan:ls.get(u.id+'_plan',null),log:ls.get(u.id+'_log',{}),weights:ls.get(u.id+'_weights',{}),bodyweight:ls.get(u.id+'_bodyweight',[])};});
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download=`gymcoach-backup-${today()}.json`;a.click();
-  URL.revokeObjectURL(url);
-  showToast('Export heruntergeladen');
+  URL.revokeObjectURL(url);showToast('Export heruntergeladen');
 }
 function importData(input){
   const f=input.files?.[0];if(!f)return;
@@ -3206,7 +3382,10 @@ function importData(input){
     try{
       const d=JSON.parse(e.target.result);
       if(!confirm('WARNUNG: Existierende Daten werden überschrieben. Fortfahren?'))return;
-      ['alex','vicky'].forEach(u=>{
+      // Support v2 (hardcoded alex/vicky) and v3 (dynamic users)
+      const userIds=d.users?d.users.map(u=>u.id):['alex','vicky'];
+      if(d.users){saveUsers(d.users);}
+      userIds.forEach(u=>{
         if(d[u]){
           if(d[u].plan)ls.set(u+'_plan',d[u].plan);
           if(d[u].log)ls.set(u+'_log',d[u].log);
@@ -3214,22 +3393,18 @@ function importData(input){
           if(d[u].bodyweight)ls.set(u+'_bodyweight',d[u].bodyweight);
         }
       });
-      showToast('Import abgeschlossen');
-      renderAdmin();
+      showToast('Import abgeschlossen');renderAdmin();
     }catch(err){alert('Ungültige JSON-Datei: '+err.message);}
   };
-  r.readAsText(f);
-  input.value='';
+  r.readAsText(f);input.value='';
 }
 function clearUserData(){
-  const first=confirm('ALLE lokalen Daten löschen?\n(Alex, Vicky, Logs, Gewichte, Pläne)');
-  if(!first)return;
-  const second=confirm('Wirklich sicher? Diese Aktion kann nicht rückgängig gemacht werden!');
-  if(!second)return;
-  ['alex_plan','vicky_plan','alex_log','vicky_log','alex_weights','vicky_weights','alex_bodyweight','vicky_bodyweight'].forEach(k=>localStorage.removeItem(k));
-  ['gc.active.alex','gc.active.vicky'].forEach(k=>localStorage.removeItem(k));
-  showToast('Alle Daten gelöscht');
-  renderAdmin();
+  if(!confirm('ALLE lokalen Daten löschen?'))return;
+  if(!confirm('Wirklich sicher? Nicht rückgängig machbar!'))return;
+  const users=getUsers();
+  users.forEach(u=>{[u.id+'_plan',u.id+'_log',u.id+'_weights',u.id+'_bodyweight','gc.active.'+u.id].forEach(k=>localStorage.removeItem(k));});
+  localStorage.removeItem('gc_users');
+  showToast('Alle Daten gelöscht');renderAdmin();
 }
 
 // ── EXERCISE CATALOG ─────────────────────────────────────────────
@@ -3392,9 +3567,10 @@ if('serviceWorker' in navigator){
 // ── INIT ───────────────────────────────────────────────────────
 (function(){
   loadSbConfig();
+  getUsers(); // Seed users on first load
   const h=new Date().getHours();const gr=h<12?'Guten Morgen':h<17?'Guten Tag':'Guten Abend';
-  const gEl=document.querySelector('#screen-users .header .label');if(gEl)gEl.textContent=gr;
-  const vp=ls.get('vicky_plan',null);if(vp)updateVickyCard(vp);
+  const gEl=document.getElementById('user-greeting');if(gEl)gEl.textContent=gr;
+  renderUserCards();
   if(hasSb())setSyncDots('synced');
 })();
 </script>
