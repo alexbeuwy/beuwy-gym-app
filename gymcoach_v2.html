@@ -2337,7 +2337,7 @@ function renderFeedback() {
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
         <div class="equip-icon" style="background:${w.colorLight};color:${w.color}">${getEquipIcon(equipKey,w.color)}</div>
         <div style="flex:1">
-          <div class="subheading" style="margin-bottom:1px">${ex.name}</div>
+          <div class="subheading" style="margin-bottom:1px;cursor:pointer" onclick="event.stopPropagation();showExDetail('${ex.id}')">${ex.name} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="vertical-align:middle;opacity:.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
           <div style="font-size:11px;color:var(--muted)">${done}/${ex.sets} Sätze · ${cw?cw+' kg':'BW'}</div>
           ${tags?`<div style="margin-top:5px;display:flex;flex-wrap:wrap">${tags}</div>`:''}
         </div>
@@ -2918,12 +2918,12 @@ function renderPlan() {
         const wData=wHist.map(h=>h.maxWeight);
         const trendColor=wData.length>=2?(wData[wData.length-1]>=wData[wData.length-2]?'var(--emerald)':'var(--red)'):'var(--muted)';
         const spark=renderSparkline(wData, trendColor);
-        return `<div style="padding:9px 0;border-bottom:1px solid var(--border)">
+        return `<div style="padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="showExDetail('${ex.id}')">
           <div style="display:grid;grid-template-columns:1fr 80px 80px;align-items:center;margin-bottom:${tags||spark?'5px':'0'}">
             <div style="display:flex;align-items:center;gap:8px">
               <div style="color:${w.color};flex-shrink:0">${getEquipIcon(equipKey,w.color)}</div>
               <div>
-                <div style="font-size:13px;font-weight:600">${ex.name}</div>
+                <div style="font-size:13px;font-weight:600">${ex.name} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="vertical-align:middle;opacity:.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
                 <div style="font-size:10px;color:var(--muted)">${ex.equipment}</div>
               </div>
             </div>
@@ -3462,8 +3462,9 @@ let _catFilter='all';
 function renderCatalog(){
   if(!state.user){showToast('Zuerst Nutzer wählen');showScreen('users');return;}
   const plan=getPlan(state.user);
+  if(!plan||!plan.workouts){document.getElementById('cat-content').innerHTML='<div class="empty"><div>Kein Plan vorhanden</div></div>';return;}
   const log=getLog(state.user);
-  const doneCount=Object.values(log).filter(e=>e?.completed).length;
+  const doneCount=Object.entries(log).filter(([d,e])=>e?.completed&&/^\d{4}/.test(d)).length;
   const nextIdx=doneCount%plan.workouts.length;
   const nextWkt=plan.workouts[nextIdx];
   const nextIds=new Set(nextWkt.exercises.map(e=>e.id));
