@@ -3588,7 +3588,7 @@ async function unlockApp(){
   const pw=document.getElementById('lock-pw').value;
   const hash=await sha256(pw);
   if(hash===_PH){
-    sessionStorage.setItem('gc_auth','1');
+    localStorage.setItem('gc_auth',Date.now().toString());
     document.getElementById('lock-screen').classList.add('unlocked');
     document.getElementById('app').style.display='';
     setTimeout(()=>{document.getElementById('lock-screen').remove();},500);
@@ -3601,7 +3601,8 @@ async function unlockApp(){
 }
 // Auto-unlock if already authenticated this session
 (function(){
-  if(sessionStorage.getItem('gc_auth')==='1'){
+  const _authTs=parseInt(localStorage.getItem('gc_auth')||'0');
+  if(_authTs && (Date.now()-_authTs)<2*60*60*1000){
     const ls=document.getElementById('lock-screen');if(ls)ls.remove();
     document.getElementById('app').style.display='';
   } else {
