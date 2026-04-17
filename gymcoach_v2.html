@@ -199,6 +199,7 @@
     /* ── Tonnage counter ── */
     @keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .tonnage{animation:countUp .4s ease}
+    @keyframes slideDown{from{opacity:0;transform:translate(-50%,-100%)}to{opacity:1;transform:translate(-50%,0)}}
     /* ── Catalog ── */
     .cat-chip{white-space:nowrap;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--surface);color:var(--sec);cursor:pointer;flex-shrink:0;transition:all .2s}
     .cat-chip:active{transform:scale(.95)}
@@ -3348,6 +3349,45 @@ function renderCatCard(exId,ctx,log){
 
 // ── TOAST ──────────────────────────────────────────────────────
 function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3200);}
+
+// ── SERVICE WORKER + Update banner ─────────────────────────────
+function showUpdateBanner(newSW){
+  if(document.getElementById('update-banner'))return;
+  const b=document.createElement('div');b.id='update-banner';
+  b.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:12px 16px">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    <div style="flex:1;font-size:13px;font-weight:600">Neue Version verfügbar · <span style="opacity:.8;font-weight:500">Tippen zum Aktualisieren</span></div>
+  </div>`;
+  b.style.cssText='position:fixed;top:max(env(safe-area-inset-top),8px);left:50%;transform:translateX(-50%);max-width:440px;width:92%;background:linear-gradient(135deg,#8B5CF6,#10B981);color:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.4);z-index:500;cursor:pointer;animation:slideDown .35s cubic-bezier(.32,.72,0,1)';
+  b.onclick=()=>{b.querySelector('div').innerHTML='<div class="spinner"></div><span style="font-size:13px">Aktualisiere...</span>';newSW.postMessage({type:'SKIP_WAITING'});};
+  document.body.appendChild(b);
+}
+if('serviceWorker' in navigator){
+  window.addEventListener('load',async()=>{
+    try{
+      const reg=await navigator.serviceWorker.register('/sw.js');
+      // Check for updates on focus + every 30 min while open
+      window.addEventListener('focus',()=>reg.update().catch(()=>{}));
+      setInterval(()=>reg.update().catch(()=>{}),30*60*1000);
+      // If a SW is already waiting when page loads (from previous visit)
+      if(reg.waiting && navigator.serviceWorker.controller)showUpdateBanner(reg.waiting);
+      // Watch for new SW installing
+      reg.addEventListener('updatefound',()=>{
+        const newSW=reg.installing;if(!newSW)return;
+        newSW.addEventListener('statechange',()=>{
+          if(newSW.state==='installed' && navigator.serviceWorker.controller){
+            showUpdateBanner(newSW);
+          }
+        });
+      });
+      // When new SW takes control → reload once
+      let refreshing=false;
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{
+        if(refreshing)return;refreshing=true;window.location.reload();
+      });
+    }catch(e){console.warn('SW register failed',e);}
+  });
+}
 
 // ── INIT ───────────────────────────────────────────────────────
 (function(){
