@@ -256,7 +256,7 @@
       <div class="uc fi fi2" id="vicky-sel" onclick="selectUser('vicky')">
         <div class="av" style="background:rgba(16,185,129,.14);color:var(--emerald)">V</div>
         <div class="subheading" style="margin-bottom:4px">Vicky</div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:14px" id="vicky-sub">Ganzkörper A · Ganzkörper B</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px" id="vicky-sub">Bauch · Beine · Po · Wiedereinstieg</div>
         <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap" id="vicky-bdg">
           <span class="badge be">2×/Woche</span><span class="badge bp">Ganzkörper</span><span class="badge ba">56 kg</span>
         </div>
@@ -588,14 +588,16 @@ const EM = {
   v_shldr_press:{ primary:['shoulders'], secondary:['triceps'],              equip:'machine' },
   v_bizeps:     { primary:['biceps'], secondary:[],                          equip:'cable' },
   v_trizeps:    { primary:['triceps'], secondary:[],                         equip:'cable' },
-  v_bauch_a:    { primary:['core'], secondary:[],                            equip:'mat' },
+  v_bauch_a:    { primary:['core'], secondary:[],                            equip:'machine' },
   v_legcurl:    { primary:['hamstrings'], secondary:[],                      equip:'machine' },
   v_abductor:   { primary:['glutes'], secondary:[],                          equip:'machine' },
   v_cablerow:   { primary:['back'], secondary:['biceps'],                    equip:'cable' },
   v_facepull:   { primary:['rear_delts','traps'], secondary:[],             equip:'cable' },
   v_forearm:    { primary:['brachialis'], secondary:[],                      equip:'dumbbell' },
   v_seitheben:  { primary:['shoulders'], secondary:[],                       equip:'cable' },
-  v_bauch_b:    { primary:['core'], secondary:[],                            equip:'mat' }
+  v_bauch_b:    { primary:['core'], secondary:[],                            equip:'mat' },
+  v_bulgarian:  { primary:['glutes','quads'], secondary:['hamstrings'],      equip:'dumbbell' },
+  v_glutekick:  { primary:['glutes'], secondary:['hamstrings'],              equip:'cable' }
 };
 
 // ── EXERCISE DETAILED DATABASE (offline-ready) ─────────────────
@@ -779,6 +781,119 @@ const EXERCISE_DB = {
     cues: ['Bauch aktiv, nicht mit Nacken ziehen', 'Kontrolle > Geschwindigkeit', 'Ausatmen bei Kontraktion'],
     mistakes: ['Nacken reißen', 'Zu schnell, kein ROM'],
     tempo: 'circuit', restSec: 15, plateBar: null, unilateral: false, priority: 2
+  },
+  // ── Vicky-spezifisch ──
+  v_legpress: {
+    variant: 'Beinpresse 45° (Füße hoch für Po-Fokus)', en: 'Leg Press (High Foot Placement)',
+    imgId: 'Leg_Press', setup: 'Rücken fest am Polster (kein Lifting!), Füße MITTIG-HOCH auf Platte schulterbreit, Knie in Zehenrichtung.',
+    cues: ['Füße hoch = mehr Po-Aktivierung', 'Knie NIE voll strecken', 'Tief ablassen aber kontrolliert (~90°)', 'Druck aus Ferse'],
+    mistakes: ['Po hebt ab vom Polster (LWS-Risiko)', 'Knie fallen nach innen', 'Zu tief für Mobilität'],
+    tempo: '2-1-X-0', restSec: 90, plateBar: null, unilateral: false, priority: 1
+  },
+  v_hipthrust: {
+    variant: 'Hip Thrust (Langhantel, Schulterblätter auf Bankkante)', en: 'Barbell Hip Thrust',
+    imgId: 'Barbell_Hip_Thrust', setup: 'Schulterblätter auf Bankkante, Stange auf Hüftfalte (Polster verwenden!), Füße flach schulterbreit, Knie ~90° oben.',
+    cues: ['Oben Po MAX squeeze 1s', 'Kinn zur Brust (Neutral)', 'Rippen runter (kein Rippenflare)', 'Druck durch Fersen'],
+    mistakes: ['Hohlkreuz oben', 'Zu tief ablassen', 'Knie kippen nach außen'],
+    tempo: '2-1-X-1', restSec: 90, plateBar: 20, unilateral: false, priority: 1
+  },
+  v_abductor: {
+    variant: 'Abduktoren-Maschine (Po-Außenseite, Gluteus Medius)', en: 'Hip Abduction Machine',
+    imgId: 'Hip_Abduction_Machine', setup: 'Rücken fest am Polster, Knie außen gegen Polster, Gurt um Hüfte falls vorhanden.',
+    cues: ['Oberkörper LEICHT vornlehnen → mehr Po-Aktivierung', 'Oben 1s halten, auf Po-Seitenteil konzentrieren', 'Langsam zurück', 'Keine Beckenrotation'],
+    mistakes: ['Zurücklehnen = Hüftbeuger übernehmen', 'Schwung', 'Zu schwer → halber ROM'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: false, priority: 1
+  },
+  v_latpull: {
+    variant: 'Latzug breit (Obergriff, weiter als Schulter)', en: 'Wide-Grip Lat Pulldown',
+    imgId: 'Wide-Grip_Lat_Pulldown', setup: 'Oberschenkel unter Polster, Obergriff weit, Schulterblätter zuerst runterziehen dann ziehen.',
+    cues: ['Zum OBEREN Brustbein ziehen', 'Leicht nach hinten lehnen ok (~15°) aber fix', 'Ellbogen nach unten & hinten denken', 'Nicht mit Bizeps ziehen'],
+    mistakes: ['Zu stark hinten lehnen = Bauchrolle-Bewegung', 'Hinter den Kopf (Schulter-Risiko)', 'Nur Arme'],
+    tempo: '2-1-X-2', restSec: 75, plateBar: null, unilateral: false, priority: 1
+  },
+  v_shldr_press: {
+    variant: 'Schulterpresse-Maschine (sitzend)', en: 'Machine Shoulder Press',
+    imgId: 'Smith_Machine_Overhead_Shoulder_Press', setup: 'Sitzhöhe so, dass Griffe auf Schulterlinie, Rücken fest am Polster, Füße flach.',
+    cues: ['Rücken DAUERHAFT am Polster', 'Volle Streckung oben aber keine Lock-Out', 'Unten nur bis Ellbogen ~90° (nicht tiefer)', 'Schultern nicht hochziehen'],
+    mistakes: ['Rücken löst sich vom Polster', 'Zu tief unten (Schulter-Stress)', 'Schulterhoch-ziehen (Trap takeover)'],
+    tempo: '2-1-X-1', restSec: 75, plateBar: null, unilateral: false, priority: 1
+  },
+  v_bizeps: {
+    variant: 'Bizeps-Curls (Kurzhanteln, alternierend)', en: 'Alternating Dumbbell Curl',
+    imgId: 'Alternate_Incline_Dumbbell_Curl', setup: 'Aufrechter Stand oder Sitz, Kurzhanteln neben Körper, Ellbogen am Rippen.',
+    cues: ['Ellbogen FIXIERT am Körper', 'Bis Schulter rollen, nicht klatschen', '2s negativ', 'Handgelenk gerade'],
+    mistakes: ['Ellbogen wandern nach vorn (= Frontdelt-Übung)', 'Schwung aus Hüfte', 'Schultern hochziehen'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: true, priority: 2
+  },
+  v_trizeps: {
+    variant: 'Trizeps-Pushdown am Kabel (Seilgriff)', en: 'Triceps Pushdown Rope',
+    imgId: 'Triceps_Pushdown', setup: 'Kabel oben, Seilgriff, Ellbogen FIX am Rippen, leichter Vorlean.',
+    cues: ['Ellbogen bleiben am Körper', 'Unten Seil auseinander ziehen für Squeeze', 'Volle Streckung 1s', 'Core fest'],
+    mistakes: ['Ellbogen wandern vor/hoch', 'Schultern beugen sich = Brustarbeit', 'Zu schwer → Schwung'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: false, priority: 2
+  },
+  v_bulgarian: {
+    variant: 'Bulgarische Kniebeuge (Kurzhanteln, hinterer Fuß auf Bank)', en: 'Dumbbell Bulgarian Split Squat',
+    imgId: 'Dumbbell_Lunges', setup: 'Hinterer Fuß auf Bank (~50cm), vorderer Fuß weit genug vorn, aufrechter Oberkörper, Hanteln seitlich.',
+    cues: ['Druck AUSSCHLIESSLICH vorderer Fuß', 'Hinterer nur Balance', 'Knie in Zehenrichtung (nicht innen!)', 'Po-Zünder #1 für BBP'],
+    mistakes: ['Stand zu kurz = Knie zu weit vor', 'Knie kollabiert nach innen', 'Oberkörper fällt vor'],
+    tempo: '3-1-X-0', restSec: 75, plateBar: null, unilateral: true, priority: 1
+  },
+  v_legcurl: {
+    variant: 'Liegender Beinbeuger (Prone Leg Curl, bäuchlings)', en: 'Lying Leg Curl',
+    imgId: 'Lying_Leg_Curls', setup: 'Flach liegend, Polster knapp ÜBER Achillessehne, Kniegelenk am Pivot, Hüfte fest auf Bank.',
+    cues: ['Hüfte bleibt FLACH (Po nicht hochheben!)', 'Voller ROM: Fersen zum Po', '3s negativ', 'Füße flex → mehr Ischios'],
+    mistakes: ['Po hebt hoch → Ischios entlastet', 'Schwung durch Hüfte', 'Halber ROM'],
+    tempo: '2-1-3-0', restSec: 75, plateBar: null, unilateral: false, priority: 1
+  },
+  v_glutekick: {
+    variant: 'Glute Kickback am Kabel (Fußschlaufe)', en: 'Cable Glute Kickback',
+    imgId: 'Leg_Pull-In', setup: 'Kabel unten, Schlaufe um Knöchel, gegenüber Kabelturm, Oberkörper leicht vor (auf Armen abstützen hilft).',
+    cues: ['Bein gerade nach hinten (nicht seitlich)', 'Oben Po squeeze 1s', 'Langsam zurück', 'Stützbein leicht gebeugt'],
+    mistakes: ['Oberkörper zu stark lehnen/schaukeln', 'Bein zu hoch → LWS-Stress', 'Schwung'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: true, priority: 2
+  },
+  v_cablerow: {
+    variant: 'Kabelrudern sitzend (V-Griff, neutral)', en: 'Seated Cable Row',
+    imgId: 'Seated_Cable_Rows', setup: 'Knie leicht gebeugt, Oberkörper aufrecht, V-Griff (Palms zueinander), Schulterblätter retrahiert.',
+    cues: ['Zur BAUCHNABEL ziehen (nicht Brust)', 'Ellbogen dicht am Körper', 'Schulterblätter 1s zusammen', 'Oberkörper STABIL (kein Lehnen)'],
+    mistakes: ['Hin- und herlehnen = LWS', 'Zur Brust ziehen (das wäre Rear Delt)', 'Ellbogen raus = Trapez'],
+    tempo: '2-1-X-1', restSec: 75, plateBar: null, unilateral: false, priority: 2
+  },
+  v_facepull: {
+    variant: 'Face Pulls (Kabel auf Kopfhöhe, Seilgriff)', en: 'Face Pull',
+    imgId: 'Face_Pull', setup: 'Kabel Kopf-/leicht über Kopfhöhe, Seilgriff, Schritt zurück bis Spannung, leichter Lean zurück.',
+    cues: ['Hände zu den OHREN ziehen', 'Daumen nach HINTEN am Endpunkt (Außenrotation)', 'Ellbogen mind. schulterhoch', 'Rumpf stabil'],
+    mistakes: ['Wie Ruderbewegung (Ellbogen tief)', 'Keine Außenrotation → nur Trapez', 'Schwung'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: false, priority: 2
+  },
+  v_forearm: {
+    variant: 'Handgelenk-Curls (Kurzhanteln, Unterarm auf Oberschenkel)', en: 'Wrist Curl',
+    imgId: 'Seated_Palms_Up_Barbell_Wrist_Curl', setup: 'Sitzen auf Bank, Unterarme auf Oberschenkeln, Handflächen nach oben, Handgelenke überm Knie.',
+    cues: ['NUR Handgelenk bewegt', 'Voller ROM: komplett runter + hoch gerollt', '2s negativ', 'Finger unten leicht öffnen für ROM'],
+    mistakes: ['Unterarm hebt = cheating', 'Zu schnell, keine Kontrolle', 'Zu schwer'],
+    tempo: '2-1-X-1', restSec: 45, plateBar: null, unilateral: false, priority: 3
+  },
+  v_seitheben: {
+    variant: 'Seitheben am Kabel (unilateral, Stinger-Griff)', en: 'Cable Lateral Raise',
+    imgId: 'Side_Lateral_Raise', setup: 'Kabel untere Stufe, gegenüberliegende Hand am Griff, leichter Vorlean Richtung Kabel, Ellbogen minimal gebeugt.',
+    cues: ['Aus SEITDELT heben (nicht Trap)', 'Nur bis Schulterhöhe', '"Gießkanne": kleiner Finger leicht hoch', '3s negativ'],
+    mistakes: ['Schwung aus Hüfte', 'Schultern hochziehen', 'Arm zu gebeugt = Bizeps übernimmt'],
+    tempo: '2-1-2-0', restSec: 60, plateBar: null, unilateral: true, priority: 2
+  },
+  v_bauch_a: {
+    variant: 'Bauchmuskel-Maschine (Crunch-Machine sitzend)', en: 'Machine Crunch',
+    imgId: 'Crunches', setup: 'Sitz einstellen, Füße unter Polster, Griffe festhalten, Körper aktiv einrollen.',
+    cues: ['Bauch kontrahiert einrollen (nicht mit Armen ziehen!)', '1s unten halten', 'Langsam zurück', 'Ausatmen beim Einrollen'],
+    mistakes: ['Mit Armen/Nacken ziehen', 'Zu schnell', 'Halber ROM'],
+    tempo: '2-1-X-1', restSec: 45, plateBar: null, unilateral: false, priority: 2
+  },
+  v_bauch_b: {
+    variant: 'Plank + Russian Twist Superset', en: 'Plank + Russian Twist',
+    imgId: 'Front_Plank', setup: 'Matte bereit · optional 2kg Gewicht für Twist · 2 Übungen direkt hintereinander ohne Pause.',
+    cues: ['Plank: Körper gerade von Ferse bis Kopf', 'Russian Twist: Po heben, Füße leicht anheben, Oberkörper rotieren', '3 Sätze Block: 30s Plank + 20 Twists pro Seite'],
+    mistakes: ['Plank: Hüfte zu hoch/zu tief', 'Twist: nur Arme drehen (nicht Rumpf)', 'Atmung vergessen'],
+    tempo: 'block', restSec: 45, plateBar: null, unilateral: false, priority: 2
   }
 };
 
@@ -1017,30 +1132,31 @@ const ls = {
 
 const VICKY_PLAN = {
   name:"Vicky", weight:56,
-  profile:{weight:56,height:158,goal:"Straffen & Definieren",injuries:"Fußgelenk selten, schwache Unterarme, leichtes Lipödem",gymDays:2,level:"beginner"},
+  profile:{weight:56,height:158,goal:"Bauch·Beine·Po · Wiedereinstieg",injuries:"Fußgelenk selten, schwache Unterarme, leichtes Lipödem",gymDays:2,level:"beginner"},
   workouts:[
-    { id:"v_full_a", name:"Ganzkörper A", label:"A", subtitle:"Beine · Po · Rücken · Schultern · Arme · Bauch",
+    { id:"v_full_a", name:"BBP-Day A", label:"A", subtitle:"Po · Beine · Rücken · Schultern",
       color:"#8B5CF6", colorLight:"rgba(139,92,246,.14)",
       exercises:[
-        {id:"v_legpress",    name:"Beinpresse",          equipment:"Maschine",                    sets:3,reps:15,weight:50,  notes:"Füße schulterbreit · Knie nicht voll strecken · Lipödem-schonend"},
-        {id:"v_hipthrust",   name:"Hip Thrust",          equipment:"Langhantel · Bank",           sets:3,reps:15,weight:30,  notes:"Po oben maximal anspannen · 1s halten · Schulterblätter auf Bank"},
-        {id:"v_latpull",     name:"Latzug",              equipment:"Kabelturm · weiter Griff",    sets:3,reps:12,weight:20,  notes:"Schulterblätter nach unten · Ellenbogen Richtung Hüfte"},
-        {id:"v_shldr_press", name:"Schulterdrücken",     equipment:"Maschine",                    sets:3,reps:12,weight:8,   notes:"Rücken am Polster · kontrolliert drücken"},
-        {id:"v_bizeps",      name:"Bizeps-Curls",        equipment:"Kabelturm · SZ-Stange",       sets:3,reps:12,weight:7.5, notes:"Ellenbogen am Körper · nicht schwingen · volle Streckung"},
-        {id:"v_trizeps",     name:"Trizeps-Pushdown",    equipment:"Kabelturm · Seilgriff",       sets:3,reps:12,weight:10,  notes:"Ellenbogen fixiert · volle Streckung unten · 2s halten"},
-        {id:"v_bauch_a",     name:"4×2 Bauch-Programm",  equipment:"Matte · 4 Blöcke à 2 Übungen",sets:4,reps:2,weight:null, notes:"4 Blöcke mit je 2 Bauchübungen · 15s Pause zwischen Blöcken"}
+        {id:"v_hipthrust",    name:"Hip Thrust",              equipment:"Langhantel · Hip-Thrust-Bank oder feste Bank", sets:3,reps:12,weight:20,  notes:"DIE Po-Übung · Schulterblätter Bankkante · Stange auf Hüftfalte (Polster!) · oben Po max 1s anspannen"},
+        {id:"v_legpress",     name:"Beinpresse 45°",          equipment:"Beinpressen-Maschine 45°",                    sets:3,reps:12,weight:40,  notes:"Füße mittig-hoch → mehr Po · schulterbreit · Knie NIE voll durchstrecken · Rücken am Polster"},
+        {id:"v_abductor",     name:"Abduktoren (Po-Außen)",   equipment:"Abduktoren-Maschine",                         sets:3,reps:15,weight:20,  notes:"Po-Außenseite · Klassiker BBP · oben 1s halten · Oberkörper leicht vornlehnen aktiviert Po mehr"},
+        {id:"v_latpull",      name:"Latzug breit",            equipment:"Kabelturm · Latzugstange weiter Griff",       sets:3,reps:12,weight:20,  notes:"Rücken breiter → Taille optisch schmaler · Schulterblätter zuerst runter, dann ziehen"},
+        {id:"v_shldr_press",  name:"Schulterdrücken",         equipment:"Schulterpresse-Maschine",                     sets:3,reps:12,weight:8,   notes:"Nur bis Ellbogen ~90° unten · Rücken fest am Polster · Sitz-Höhe so dass Griffe auf Schulterlinie"},
+        {id:"v_bizeps",       name:"Bizeps-Curls",            equipment:"Kurzhanteln oder Kabelstange",                sets:3,reps:12,weight:4,   notes:"Ellbogen am Körper fixiert · nicht nach vorn wandern lassen · 2s negativ"},
+        {id:"v_bauch_a",      name:"Bauchmuskel-Maschine",    equipment:"Bauch-Crunch-Maschine",                       sets:3,reps:15,weight:15,  notes:"Gerätkrümmen · Bauch aktiv einrollen · nicht mit Hals ziehen · 1s halten unten"}
       ]
     },
-    { id:"v_full_b", name:"Ganzkörper B", label:"B", subtitle:"Beine · Po · Rücken · Schultern · Arme · Bauch",
+    { id:"v_full_b", name:"BBP-Day B", label:"B", subtitle:"Beine · Po · Bauch · Unterarme",
       color:"#10B981", colorLight:"rgba(16,185,129,.14)",
       exercises:[
-        {id:"v_legcurl",     name:"Beinbeuger liegend",  equipment:"Maschine",                    sets:3,reps:12,weight:15,  notes:"Hintere Oberschenkel · langsam ablassen · Hüfte am Polster"},
-        {id:"v_abductor",    name:"Abduktoren-Maschine", equipment:"Maschine",                    sets:3,reps:15,weight:20,  notes:"Po-Außenseite · oben 1s halten · kein Schwung"},
-        {id:"v_cablerow",    name:"Kabelrudern",         equipment:"Kabelturm · enger Griff",     sets:3,reps:12,weight:15,  notes:"Schulterblätter zusammen · kein Schwung · 1s halten"},
-        {id:"v_facepull",    name:"Face Pulls",          equipment:"Kabel · Seilgriff · Kopfhöhe",sets:3,reps:15,weight:7,   notes:"Außenrotation · Schultern stärken · Haltung verbessern"},
-        {id:"v_forearm",     name:"Unterarm-Curls",      equipment:"Kurzhanteln · Unterarmbank",  sets:3,reps:15,weight:4,   notes:"Handgelenk über Kante · Griffkraft aufbauen"},
-        {id:"v_seitheben",   name:"Seitheben",           equipment:"Kabel · von unten",           sets:3,reps:15,weight:5,   notes:"Aus der Schulter heben · Ellenbogen leicht gebeugt"},
-        {id:"v_bauch_b",     name:"4×2 Bauch-Programm",  equipment:"Matte · 4 Blöcke à 2 Übungen",sets:4,reps:2,weight:null, notes:"4 Blöcke mit je 2 Bauchübungen · 15s Pause zwischen Blöcken"}
+        {id:"v_bulgarian",    name:"Bulgarische Kniebeuge",   equipment:"Kurzhanteln + Bank (hinterer Fuß auf Bank)",  sets:3,reps:10,weight:4,   notes:"Pro Seite · vorderes Knie über Fuß (nicht innen!) · Po-Zünder #1 · Oberkörper aufrecht"},
+        {id:"v_legcurl",      name:"Liegender Beinbeuger",    equipment:"Beinbeuger-Maschine (liegend, bäuchlings)",   sets:3,reps:12,weight:15,  notes:"Polster knapp ÜBER Achillessehne · Hüfte FLACH auf Bank lassen (nicht Po hochheben) · 3s negativ"},
+        {id:"v_glutekick",    name:"Glute Kickback am Kabel", equipment:"Kabelturm unten · Fußschlaufe",               sets:3,reps:15,weight:10,  notes:"Pro Seite · Kabel am Knöchel · Bein gerade nach hinten strecken · Oberkörper leicht vorn · Po squeeze"},
+        {id:"v_cablerow",     name:"Kabelrudern sitzend",     equipment:"Kabelturm · V-Griff (eng, neutral)",          sets:3,reps:12,weight:15,  notes:"Zur Bauch/Nabel-Höhe ziehen (nicht Brust) · Schulterblätter zusammen 1s · kein Lehnen hinten"},
+        {id:"v_facepull",     name:"Face Pulls",              equipment:"Kabel Kopfhöhe · Seilgriff",                  sets:3,reps:15,weight:7,   notes:"Hände zu den Ohren · Daumen nach hinten am Endpunkt (Außenrotation) · Haltung-Booster"},
+        {id:"v_forearm",      name:"Handgelenk-Curls",        equipment:"Kurzhanteln · Unterarme auf Oberschenkel",    sets:3,reps:15,weight:3,   notes:"Nur Handgelenk bewegt · Unterarm fest · voller ROM · für deine Griffstärke"},
+        {id:"v_seitheben",    name:"Seitheben am Kabel",      equipment:"Kabelturm unten · Einzelgriff (Stinger)",     sets:3,reps:12,weight:3,   notes:"Einseitig · gegenüberliegende Hand am Griff · Ellbogen leicht gebeugt · bis Schulterhöhe"},
+        {id:"v_bauch_b",      name:"Plank + Russian Twist",   equipment:"Matte · ggf. 2kg Hantel für Twist",           sets:3,reps:2,weight:null, notes:"Block: 30s Plank + 20 Russian Twists pro Seite · 2 Bauchübungen in Serie"}
       ]
     }
   ]
@@ -1327,7 +1443,6 @@ function navTo(tab) {
 
 // ── USER SELECT ────────────────────────────────────────────────
 async function selectUser(u) {
-  if(u==='vicky'&&!ls.get('vicky_plan',null)){showScreen('vicky');return;}
   state.user=u;
   if(hasSb()){
     setSyncDots('syncing');
