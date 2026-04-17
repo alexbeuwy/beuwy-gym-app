@@ -161,6 +161,16 @@
     .ex-anim.paused img{animation-play-state:paused}
     .ex-anim.paused img:nth-child(1){opacity:1}
     .ex-anim.paused img:nth-child(2){opacity:0}
+    @media (prefers-reduced-motion: reduce){
+      .ex-anim img{animation:none!important}
+      .ex-anim img:nth-child(1){opacity:1}
+      .ex-anim img:nth-child(2){opacity:0}
+      .fi,.fi1,.fi2,.fi3,.fi4,.fi5,.fi6{animation:none!important}
+      .confetti-dot{animation:none!important;opacity:0}
+      .pr-badge{animation:none!important}
+      .streak.hot{animation:none!important}
+      .cat-card{transition:none!important}
+    }
     .ex-modal-body{padding:20px}
     .ex-cue{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
     .ex-cue:last-child{border-bottom:none}
@@ -1415,6 +1425,8 @@ function restTick(){
     disp.textContent=0;
     restStartTs=0;restTotal=0;persistActive();
     try{const a=new Audio();a.src='data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkZeWj4F0aGRmaXJ/ipOZnZiQgXJlXl1ibXqIk5mblI2BdGhiYWdyfIqUmpuUjIF0Z2FhZ3N+i5WamZKLf3JmYWJod4KNl5qYkYd6bmVhZGp4g46Wl5WOhHhsZWJlbHmFkJeXlI2Dd2xkY2ZueYaRl5eTjIJ3bGRjZm15hpGXl5OMgndtZGRmbnmGkZaXk4yCeG1kZGdueYaQlZeTjIJ4bWVkZ295hpCVl5OLgnhtZWRnb3mGkJWXk4uCeG5lZGdveYWPlJaTi4F4bmVlZ3B5hY+UlZOKgXhuZmVncHmFjpOUkoqBeG5mZmhxeYWOk5SSiYB4b2ZmaHF5hI6Tk5KJgHhvZ2docXmEjpKTkomAeG9namhxeYSOkpOSiIB4cGdqaXJ5hI2Rk5GIf3hwaGppc3mEjZGRkYh/eHBpampzeYOMkJCQh354cWpqanN5g4yQkJCHfnhxampqc3mDjJCQkIZ+eHFqa2pzeIKMj4+QiH94cWpranthGGMj4+PaWwzJSkuN0RWZ3h/fnVpXVZWXWx9jpaWkImAd3BtcHd/hoyQkIuFfndzcXJ2fIOJjY6NiYR/e3h3d3l+g4iLjIuIhYB9enl5en6Dh4qLioeEgH17enp7foKGiYqJh4N/fHt7e3x/goWHiIeGg398fHt8fH+ChYeHhoWCf3x8fH19gIKEhoaFhIJ/fX19fn6AgoSFhYSDgX99fX5+f4GDhIWEg4KAfn5+fn+AgYOEhIOCgX9+fn5/gIGCg4ODgoGAfn5/f4CAgYKDg4KBgH9+f3+AgIGCgoKCgYB/f39/gIGBgoKCgYGAf39/f4CBgYKCgoGBgH9/f3+AgYGBgoKBgYB/f39/gIGBgYKCgYGAf3+Af4CAgYGCgoGBgIB/f4CAgICBgYGBgYGAf3+AgICAgYGBgYGBgH9/gICAgIGBgYGBgYB/f4CAgICBgYGBgYCAf3+AgICAgIGBgYGBgH9/gICAgICBgYGBgYCAf4CAgICAgIGBgYGAgH9/gICAgICBgYGBgICAf3+AgICAgIGBgYGAgH9/gICAgA==';a.volume=0.5;a.play();}catch(e){}
+    haptic([80,40,80]);
+    if(document.hidden)notify('⏱ Pause vorbei','Los gehts!');
     showToast('Pause vorbei!');
     return;
   }
@@ -1649,8 +1661,94 @@ function loadDashboard() {
     document.getElementById('resume-text').textContent=`${_w.name} ${_w.label} · ${_done}/${_total} Sätze · ${_mins} Min`;
     _rb.style.display='block';
   } else {_rb.style.display='none';}
-  renderWeekStrip();renderBodyWeight();renderTodayCard(plan);renderStats(plan);renderWktBtns(plan);
+  renderWeekStrip();renderBodyWeight();renderCoachAlerts(plan);renderTodayCard(plan);renderStats(plan);renderWktBtns(plan);
   if(hasSb())setSyncDots('synced');
+}
+
+// ── PROACTIVE COACH ALERTS ──────────────────────────────────────
+function renderCoachAlerts(plan){
+  let el=document.getElementById('coach-alerts');
+  if(!el){
+    const parent=document.querySelector('#screen-dashboard .cx');if(!parent)return;
+    el=document.createElement('div');el.id='coach-alerts';el.className='cx';el.style.padding='0';
+    parent.parentNode.insertBefore(el,parent);
+  }
+  const log=getLog(state.user);
+  const alerts=[];
+  const now=Date.now();
+
+  // 1) Muscle-group neglected (10+ days since last workout of that type)
+  plan.workouts.forEach((w,i)=>{
+    let lastDoneTs=0;
+    Object.entries(log).forEach(([d,e])=>{
+      if(e?.completed && e.workoutIndex===i){
+        const ts=new Date(d+'T12:00:00').getTime();
+        if(ts>lastDoneTs)lastDoneTs=ts;
+      }
+    });
+    if(lastDoneTs>0){
+      const days=Math.floor((now-lastDoneTs)/(1000*60*60*24));
+      if(days>=10){
+        alerts.push({type:'warn',text:`${w.name} ${w.label} seit ${days} Tagen nicht trainiert`,cta:'Jetzt starten',action:()=>startWkt(i)});
+      }
+    }
+  });
+
+  // 2) Plateau detection per exercise (3+ sessions same weight, ok rating)
+  plan.workouts.forEach(w=>{
+    w.exercises.forEach(ex=>{
+      const history=analyzeExerciseHistory(state.user,ex.id,plan.workouts.indexOf(w));
+      if(history.length>=3){
+        const last3=history.slice(-3);
+        const sameW=last3.every(s=>Math.abs(s.maxW-last3[0].maxW)<0.5);
+        const okRatings=last3.filter(s=>s.rating==='ok'||!s.rating).length>=2;
+        if(sameW && last3[0].maxW>0 && okRatings){
+          alerts.push({type:'info',text:`${ex.name}: seit 3 Sessions ${last3[0].maxW}kg — Deload oder +${last3[0].maxW>=50?2.5:1.25}kg probieren`,cta:'',action:null});
+          return; // only one plateau alert per workout for brevity
+        }
+      }
+    });
+  });
+
+  // 3) Volume trend: this week vs last week
+  const weekStart=(d)=>{const dt=new Date(d+'T00:00:00');const day=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-day);return dt.getTime();};
+  const thisWeekStart=weekStart(today());
+  const lastWeekStart=thisWeekStart-7*86400000;
+  let thisVol=0,lastVol=0;
+  Object.entries(log).forEach(([d,e])=>{
+    if(!e?.sets)return;
+    const ts=new Date(d+'T12:00:00').getTime();
+    const vol=Object.values(e.sets).flat().reduce((a,s)=>a+((s.done?s.weight:0)||0)*(s.reps||0),0);
+    if(ts>=thisWeekStart)thisVol+=vol;
+    else if(ts>=lastWeekStart)lastVol+=vol;
+  });
+  if(lastVol>0 && thisVol>0){
+    const change=Math.round((thisVol-lastVol)/lastVol*100);
+    if(change>=25)alerts.push({type:'warn',text:`Wochen-Volumen +${change}% vs letzte Woche — Fatigue beobachten`,cta:'',action:null});
+    else if(change<=-30 && thisVol<lastVol/2)alerts.push({type:'info',text:`Wochen-Volumen nur ${100+change}% von letzter — zurück in den Flow?`,cta:'',action:null});
+  }
+
+  // 4) Running tradeoff (Alex only)
+  if(state.user==='alex'){
+    // Heavy leg day today → gentle run reminder
+    const completed=Object.values(log).filter(e=>e?.completed).length;
+    const nextIdx=completed%plan.workouts.length;
+    const nextW=plan.workouts[nextIdx];
+    if(nextW?.id==='legs'){
+      alerts.push({type:'info',text:`Heute Beintag → morgen kein Tempo-Lauf (80% Zone 2 empfohlen)`,cta:'',action:null});
+    }
+  }
+
+  if(!alerts.length){el.innerHTML='';return;}
+  el.innerHTML=alerts.slice(0,3).map((a,i)=>`<div class="card fi fi${i+1}" style="margin:0 18px 10px;padding:12px 14px;border-left:3px solid ${a.type==='warn'?'var(--amber)':'var(--sky)'};cursor:${a.action?'pointer':'default'}" ${a.action?`onclick="(${a.action.toString()})()"`:''}>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:16px">${a.type==='warn'?'⚠️':'💡'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;line-height:1.4">${a.text}</div>
+        ${a.cta?`<div style="font-size:11px;color:var(--purple);font-weight:700;margin-top:3px">${a.cta} →</div>`:''}
+      </div>
+    </div>
+  </div>`).join('');
 }
 
 function calcActiveWeeks(u) {
@@ -1801,6 +1899,10 @@ function startWkt(idx) {
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   document.getElementById('nav-workout').classList.add('active');
   acquireWakeLock();
+  // Ask for notification permission once on first workout
+  if('Notification' in window && Notification.permission==='default'){
+    setTimeout(()=>Notification.requestPermission().then(p=>{_notifPerm=(p==='granted');}),800);
+  }
   persistActive();
   // Safety net: persist every 5s in case any mutation slipped through
   if(state._persistInterval)clearInterval(state._persistInterval);
@@ -2352,11 +2454,15 @@ function exportICS() {
 }
 
 // ── HISTORY ────────────────────────────────────────────────────
+let _histLimit=20;
 function renderHistory() {
   const plan=getPlan(state.user);const log=getLog(state.user);
   document.getElementById('hist-title').textContent=`${plan?.name||state.user}'s Verlauf`;
-  const el=document.getElementById('hist-list');const dates=Object.keys(log).sort().reverse();
-  if(!dates.length){el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg><div class="subheading" style="margin-bottom:4px">Noch keine Einheiten</div><div style="font-size:13px">Starte dein erstes Training!</div></div>`;return;}
+  const el=document.getElementById('hist-list');
+  const allDates=Object.keys(log).filter(k=>!k.startsWith('_')).sort().reverse();
+  if(!allDates.length){el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg><div class="subheading" style="margin-bottom:4px">Noch keine Einheiten</div><div style="font-size:13px">Starte dein erstes Training!</div></div>`;return;}
+  const dates=allDates.slice(0,_histLimit);
+  const moreBtn=allDates.length>_histLimit?`<button class="btn btn-s btn-full" style="margin:8px 0 20px" onclick="_histLimit+=20;renderHistory()">Weitere ${Math.min(20,allDates.length-_histLimit)} laden (${allDates.length-_histLimit} übrig)</button>`:'';
   el.innerHTML=dates.map(d=>{
     const e=log[d];const w=plan?.workouts?.[e.workoutIndex];
     const done=Object.values(e.sets||{}).reduce((s,sets)=>s+sets.filter(s=>s.done).length,0);
@@ -2375,7 +2481,7 @@ function renderHistory() {
       ${e.analysis?.encouragement?`<div style="font-size:11px;font-style:italic;color:var(--amber);margin-top:6px">"${e.analysis.encouragement}"</div>`:''}
       <div style="text-align:right;margin-top:6px"><span style="font-size:11px;color:var(--sec)">Details ansehen →</span></div>
     </div>`;
-  }).join('');
+  }).join('')+moreBtn;
 }
 
 function showHistDetail(date) {
@@ -2900,7 +3006,29 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 // ── HAPTIC FEEDBACK ───────────────────────────────────────────────
-function haptic(pattern){try{if(navigator.vibrate)navigator.vibrate(pattern);}catch(e){}}
+// iOS Safari blocks navigator.vibrate silently. Works on Android/desktop Chrome.
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+function haptic(pattern){
+  try{if(navigator.vibrate && !IS_IOS)navigator.vibrate(pattern);}catch(e){}
+  // iOS fallback: visual pulse on body for 80ms (subtle, won't disrupt)
+  if(IS_IOS){
+    const b=document.body;b.style.filter='brightness(1.08)';
+    setTimeout(()=>{b.style.filter='';},80);
+  }
+}
+// Web Notifications API request on first interaction (for rest timer completion when tab backgrounded)
+let _notifPerm=null;
+function ensureNotifPerm(){
+  if(_notifPerm!==null)return _notifPerm;
+  if(!('Notification' in window)){_notifPerm=false;return false;}
+  if(Notification.permission==='granted'){_notifPerm=true;return true;}
+  if(Notification.permission==='denied'){_notifPerm=false;return false;}
+  return null; // not yet asked
+}
+function notify(title, body){
+  if(!ensureNotifPerm())return;
+  try{new Notification(title,{body,icon:'/favicon.ico',silent:false,tag:'gymcoach'});}catch(e){}
+}
 
 // ── PR DETECTION ─────────────────────────────────────────────────
 function checkPR(exId,weight,reps){
