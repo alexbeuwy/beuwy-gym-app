@@ -1651,9 +1651,7 @@ function loadDashboard() {
     streakEl.style.display='none';
   } else {
     streakEl.style.display='';
-    // 1 Flamme pro aktiver Woche, visuell gekappt bei 5
-    const flames='🔥'.repeat(Math.min(activeWeeks,5))+(activeWeeks>5?`+${activeWeeks-5}`:'');
-    document.getElementById('streak-n').textContent=activeWeeks+' '+flames;
+    document.getElementById('streak-n').textContent=activeWeeks+' 🔥';
     if(activeWeeks>=4)streakEl.classList.add('hot');else streakEl.classList.remove('hot');
   }
   if(!hasSb())document.getElementById('sb-banner').classList.add('show');
@@ -2819,7 +2817,7 @@ function showExDetail(exId){
   const doneSets=state.sets[exId]?.filter(s=>s.done)||[];
   const bestSet=doneSets.reduce((b,s)=>(!b||(s.weight||0)*(s.reps||0)>(b.weight||0)*(b.reps||0))?s:b,null);
   const oneRM=bestSet&&bestSet.weight&&bestSet.reps?Math.round(bestSet.weight*(1+bestSet.reps/30)):null;
-  const imgBase=EX_IMG_BASE+d.imgId+'/images/';
+  const imgBase=EX_IMG_BASE+d.imgId+'/';
   const el=document.getElementById('ex-modal');
   el.innerHTML=`
     <div class="ex-modal-header">
@@ -3329,7 +3327,7 @@ function renderCatCard(exId,ctx,log){
       break;
     }
   }
-  const imgUrl=d?.imgId?`${EX_IMG_BASE}${d.imgId}/images/0.jpg`:'';
+  const imgUrl=d?.imgId?`${EX_IMG_BASE}${d.imgId}/0.jpg`:'';
   const name=d?.variant?.split('(')[0].trim() || exId;
   const primary=(EM[exId]?.primary||[])[0]||'';
   const equipLabel=EM[exId]?.equip||d?.equipment||'';
