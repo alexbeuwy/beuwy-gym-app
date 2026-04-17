@@ -218,11 +218,29 @@
     .cat-badge.new{background:var(--el);color:var(--emerald)}
     .cat-group-hdr{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
     .cat-group-hdr:first-child{margin-top:4px}
+    /* ── Lock Screen ── */
+    #lock-screen{position:fixed;inset:0;z-index:9999;background:#0a0a0f;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:24px;transition:opacity .4s ease}
+    #lock-screen.unlocked{opacity:0;pointer-events:none}
+    #lock-screen .lock-logo{font-size:44px;font-weight:900;letter-spacing:-.04em;background:linear-gradient(135deg,#8B5CF6,#10B981);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    #lock-screen .lock-input{width:100%;max-width:300px;padding:14px 18px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:#F0F0F5;font-family:inherit;font-size:16px;text-align:center;outline:none;transition:border-color .2s}
+    #lock-screen .lock-input:focus{border-color:#8B5CF6}
+    #lock-screen .lock-input.shake{animation:shake .4s ease}
+    #lock-screen .lock-hint{font-size:12px;color:#5B6170;height:18px}
+    @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
   </style>
 </head>
 <body>
+<!-- Lock Screen -->
+<div id="lock-screen">
+  <div class="lock-logo">GymCoach</div>
+  <div style="font-size:14px;color:#9CA3AF;text-align:center">Passwort eingeben</div>
+  <input type="password" class="lock-input" id="lock-pw" placeholder="••••••••" autocomplete="current-password" autofocus
+    onkeydown="if(event.key==='Enter')unlockApp()">
+  <button onclick="unlockApp()" style="width:100%;max-width:300px;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#8B5CF6,#10B981);color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">Entsperren</button>
+  <div class="lock-hint" id="lock-hint"></div>
+</div>
 <div class="ambient"></div>
-<div id="app">
+<div id="app" style="display:none">
   <div id="toast"></div>
   <!-- Rest Timer -->
   <div id="rest-timer">
@@ -3562,6 +3580,34 @@ function renderCatCard(exId,ctx,log){
 
 // ── TOAST ──────────────────────────────────────────────────────
 function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3200);}
+
+// ── AUTH (SHA-256 hash comparison — password not in plaintext) ──
+const _PH='12d2fdcad70f1050d884118bd6f18dd892ef3141f1c25458e5cc5c4faf13f9c6';
+async function sha256(msg){const d=new TextEncoder().encode(msg);const h=await crypto.subtle.digest('SHA-256',d);return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+async function unlockApp(){
+  const pw=document.getElementById('lock-pw').value;
+  const hash=await sha256(pw);
+  if(hash===_PH){
+    sessionStorage.setItem('gc_auth','1');
+    document.getElementById('lock-screen').classList.add('unlocked');
+    document.getElementById('app').style.display='';
+    setTimeout(()=>{document.getElementById('lock-screen').remove();},500);
+  } else {
+    const inp=document.getElementById('lock-pw');
+    inp.classList.remove('shake');void inp.offsetWidth;inp.classList.add('shake');
+    document.getElementById('lock-hint').textContent='Falsches Passwort';
+    inp.value='';inp.focus();
+  }
+}
+// Auto-unlock if already authenticated this session
+(function(){
+  if(sessionStorage.getItem('gc_auth')==='1'){
+    const ls=document.getElementById('lock-screen');if(ls)ls.remove();
+    document.getElementById('app').style.display='';
+  } else {
+    document.getElementById('lock-pw')?.focus();
+  }
+})();
 
 // ── SERVICE WORKER + Update banner ─────────────────────────────
 function showUpdateBanner(newSW){
