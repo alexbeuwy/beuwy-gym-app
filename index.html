@@ -18,7 +18,7 @@
       --r:16px;--rsm:10px;--rlg:22px;
     }
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden}
+    body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;transition:background .5s ease,color .4s ease}
     #app{max-width:480px;margin:0 auto;min-height:100dvh;position:relative}
     .ambient{position:fixed;top:0;left:0;width:100%;height:100%;background:
       radial-gradient(ellipse 60% 50% at 20% 10%,rgba(139,92,246,.07) 0%,transparent 60%),
@@ -1500,6 +1500,7 @@ function clearActive(){
   try{localStorage.removeItem('gc.active.'+state.user);}catch(e){}
 }
 function resumeActiveWorkout(){
+  applyTheme(state.user);
   const a=loadActive(state.user);if(!a)return false;
   const plan=getPlan(state.user);const w=plan?.workouts?.[a.wIdx];if(!w)return false;
   state.wIdx=a.wIdx;state.sets=a.sets||{};state.ratings=a.ratings||{};
@@ -1730,11 +1731,46 @@ function detectSupersets(exercises) {
 const state = { user:null, wIdx:null, sets:{}, startTime:null, ti:null, ratings:{}, actualW:{}, notes:{}, timerPaused:false, pauseOffset:0, pauseStart:0 };
 
 // ── NAVIGATION ─────────────────────────────────────────────────
+// ── THEME ENGINE (per-user) ───────────────────────────────────
+const THEME_DARK={bg:'#0a0a0f',surface:'rgba(255,255,255,.04)',s2:'rgba(255,255,255,.07)',border:'rgba(255,255,255,.08)',border2:'rgba(255,255,255,.16)',text:'#F0F0F5',muted:'#5B6170',sec:'#9CA3AF',purple:'#8B5CF6',pl:'rgba(139,92,246,.14)',emerald:'#10B981',el:'rgba(16,185,129,.14)',amber:'#F59E0B',al:'rgba(245,158,11,.14)',sky:'#38BDF8',sl:'rgba(56,189,248,.14)',red:'#EF4444',rl:'rgba(239,68,68,.14)',
+  ambient1:'rgba(139,92,246,.07)',ambient2:'rgba(16,185,129,.05)',cardShadow:'none'};
+const THEME_PASTEL={bg:'#F7F3EF',surface:'rgba(255,255,255,.88)',s2:'rgba(255,255,255,.95)',border:'rgba(160,140,125,.1)',border2:'rgba(160,140,125,.18)',text:'#3A3544',muted:'#9B95A6',sec:'#736E7E',purple:'#A78BDB',pl:'rgba(167,139,219,.12)',emerald:'#6BBF96',el:'rgba(107,191,150,.12)',amber:'#E09E55',al:'rgba(224,158,85,.12)',sky:'#6AAED4',sl:'rgba(106,174,212,.12)',red:'#D97070',rl:'rgba(217,112,112,.1)',
+  ambient1:'rgba(219,180,240,.1)',ambient2:'rgba(240,200,160,.08)',cardShadow:'0 1px 8px rgba(0,0,0,.04)'};
+let _currentTheme=null;
+function applyTheme(userId){
+  const user=getUser(userId);
+  const t=(user?.gender==='w')?THEME_PASTEL:THEME_DARK;
+  if(t===_currentTheme)return;
+  _currentTheme=t;
+  const r=document.documentElement.style;
+  r.setProperty('--bg',t.bg);r.setProperty('--surface',t.surface);r.setProperty('--s2',t.s2);
+  r.setProperty('--border',t.border);r.setProperty('--border2',t.border2);
+  r.setProperty('--text',t.text);r.setProperty('--muted',t.muted);r.setProperty('--sec',t.sec);
+  r.setProperty('--purple',t.purple);r.setProperty('--pl',t.pl);
+  r.setProperty('--emerald',t.emerald);r.setProperty('--el',t.el);
+  r.setProperty('--amber',t.amber);r.setProperty('--al',t.al);
+  r.setProperty('--sky',t.sky);r.setProperty('--sl',t.sl);
+  r.setProperty('--red',t.red);r.setProperty('--rl',t.rl);
+  document.body.style.background=t.bg;
+  const amb=document.querySelector('.ambient');
+  if(amb)amb.style.background=`radial-gradient(ellipse 60% 50% at 20% 10%,${t.ambient1} 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 80% 85%,${t.ambient2} 0%,transparent 60%)`;
+  document.querySelectorAll('.card').forEach(c=>{c.style.boxShadow=t.cardShadow;});
+}
+function resetTheme(){
+  _currentTheme=null;
+  const r=document.documentElement.style;
+  ['--bg','--surface','--s2','--border','--border2','--text','--muted','--sec','--purple','--pl','--emerald','--el','--amber','--al','--sky','--sl','--red','--rl'].forEach(v=>r.removeProperty(v));
+  document.body.style.background='';
+  const amb=document.querySelector('.ambient');
+  if(amb)amb.style.background='';
+}
+
 function showScreen(n) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(`screen-${n}`).classList.add('active');
   const noNav=['users','vicky'];
   document.getElementById('bottom-nav').style.display=noNav.includes(n)?'none':'flex';
+  if(n==='users')resetTheme();
   window.scrollTo(0,0);
 }
 function navTo(tab) {
@@ -1747,6 +1783,7 @@ function navTo(tab) {
 // ── USER SELECT ────────────────────────────────────────────────
 async function selectUser(u) {
   state.user=u;
+  applyTheme(u);
   if(hasSb()){
     setSyncDots('syncing');
     const merged=await loadAndMergeLog(u);
