@@ -145,6 +145,43 @@
     .superset-group{position:relative;margin-left:0}
     .superset-link{position:relative;margin-left:18px;padding-left:14px;border-left:2px solid var(--purple)}
     .superset-badge{position:absolute;left:-28px;top:50%;transform:translateY(-50%) rotate(-90deg);font-size:8px;font-weight:800;letter-spacing:.1em;color:var(--purple);text-transform:uppercase;white-space:nowrap}
+    /* ── Exercise Detail Modal ── */
+    #ex-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(12px);z-index:200;display:none;align-items:flex-end;justify-content:center}
+    #ex-modal-overlay.open{display:flex}
+    .ex-modal{width:100%;max-width:480px;background:#141418;border-radius:22px 22px 0 0;border-top:1px solid var(--border);padding:0;max-height:88dvh;overflow-y:auto;animation:slideUp .35s cubic-bezier(.32,.72,0,1)}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .ex-modal-header{position:relative;overflow:hidden;border-radius:22px 22px 0 0}
+    .ex-modal-imgs{display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+    .ex-modal-imgs img{width:50%;height:200px;object-fit:cover;flex-shrink:0;scroll-snap-align:start;background:var(--surface)}
+    .ex-modal-imgs .img-fallback{width:100%;height:160px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--surface),rgba(139,92,246,.08));font-size:40px;font-weight:800;color:var(--muted)}
+    .ex-modal-body{padding:20px}
+    .ex-cue{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+    .ex-cue:last-child{border-bottom:none}
+    .ex-cue-icon{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px}
+    .ex-mistake{display:flex;align-items:flex-start;gap:8px;padding:6px 0}
+    /* ── Duration Picker ── */
+    #dur-picker{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:150;display:none;align-items:flex-end;justify-content:center}
+    #dur-picker.open{display:flex}
+    .dur-sheet{width:100%;max-width:480px;background:#141418;border-radius:22px 22px 0 0;border-top:1px solid var(--border);padding:24px 20px max(24px,env(safe-area-inset-bottom));animation:slideUp .3s cubic-bezier(.32,.72,0,1)}
+    .dur-opt{display:flex;align-items:center;gap:14px;padding:16px;border-radius:14px;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;transition:all .2s;margin-bottom:10px}
+    .dur-opt:hover,.dur-opt:active{border-color:var(--purple);background:var(--pl)}
+    .dur-opt .dur-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex-shrink:0}
+    .dur-opt .dur-label{font-size:15px;font-weight:700}
+    .dur-opt .dur-desc{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+    /* ── PR Celebration ── */
+    @keyframes prPop{0%{transform:scale(0) rotate(-15deg);opacity:0}50%{transform:scale(1.15) rotate(3deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+    @keyframes prShine{0%{background-position:200% center}100%{background-position:-200% center}}
+    .pr-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.05em;background:linear-gradient(90deg,#F59E0B,#F97316,#EF4444,#F59E0B);background-size:300% 100%;animation:prPop .5s cubic-bezier(.32,.72,0,1),prShine 2s linear infinite;color:#fff;text-transform:uppercase}
+    /* ── Plate Calculator ── */
+    .plate-bar{display:flex;align-items:center;justify-content:center;gap:0;padding:12px 0}
+    .plate{border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:rgba(0,0,0,.7);min-width:10px}
+    .plate-collar{width:8px;height:20px;background:#666;border-radius:2px}
+    .plate-shaft{height:8px;background:linear-gradient(180deg,#888,#555);border-radius:2px}
+    /* ── Wake Lock indicator ── */
+    .wake-dot{width:6px;height:6px;border-radius:50%;background:var(--emerald);box-shadow:0 0 6px var(--emerald);animation:pulse 2s ease infinite}
+    /* ── Tonnage counter ── */
+    @keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .tonnage{animation:countUp .4s ease}
   </style>
 </head>
 <body>
@@ -160,6 +197,22 @@
       <button class="rest-preset" onclick="setRestDuration(120)">120s</button>
     </div>
     <button class="rest-skip" onclick="skipRest()">Skip</button>
+  </div>
+
+  <!-- Exercise Detail Modal -->
+  <div id="ex-modal-overlay" onclick="if(event.target===this)closeExModal()">
+    <div class="ex-modal" id="ex-modal"></div>
+  </div>
+
+  <!-- Duration Picker -->
+  <div id="dur-picker" onclick="if(event.target===this)closeDurPicker()">
+    <div class="dur-sheet">
+      <div class="sheet-handle" style="width:36px;height:4px;background:var(--border2);border-radius:999px;margin:0 auto 18px"></div>
+      <div class="label" style="margin-bottom:4px">Wie viel Zeit hast du?</div>
+      <div class="heading" style="font-size:22px;margin-bottom:16px" id="dur-title">Training starten</div>
+      <div id="dur-options"></div>
+      <button class="btn btn-g btn-full" style="margin-top:6px" onclick="closeDurPicker()">Abbrechen</button>
+    </div>
   </div>
 
   <!-- Supabase Config Sheet -->
@@ -212,7 +265,27 @@
         <div class="sync-dot" id="user-sync-dot"></div>
         <span id="user-sync-label">Cloud-Sync einrichten</span>
       </button>
+      <button class="btn btn-g" style="margin-top:6px;font-size:12px" onclick="openAdmin()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Admin
+      </button>
     </div>
+  </div>
+
+  <!-- SCREEN: Admin -->
+  <div id="screen-admin" class="screen">
+    <div class="header">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <button class="btn btn-g" onclick="showScreen('users')" style="padding:8px;border-radius:9px">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <div class="subheading">Admin</div>
+        <div style="width:35px"></div>
+      </div>
+      <div class="heading" style="margin-bottom:4px">Verwaltung</div>
+      <div style="font-size:13px;color:var(--muted)">Nutzer, Pläne, Daten</div>
+    </div>
+    <div class="cx" id="admin-content"></div>
   </div>
 
   <!-- SCREEN: Dashboard -->
@@ -504,6 +577,9 @@ const EM = {
   cablerow:  { primary:['back'], secondary:['biceps'],                      equip:'cable' },
   facepull:  { primary:['rear_delts','traps'], secondary:[],               equip:'cable' },
   hammer:    { primary:['biceps','brachialis'], secondary:[],               equip:'dumbbell' },
+  wristcurl: { primary:['brachialis'], secondary:[],                        equip:'dumbbell' },
+  revwristcurl:{ primary:['brachialis'], secondary:[],                      equip:'dumbbell' },
+  farmerwalk:{ primary:['brachialis','core'], secondary:['traps'],          equip:'dumbbell' },
   abrollout: { primary:['core'], secondary:['lats'],                        equip:'wheel' },
   // Vicky
   v_legpress:   { primary:['quads'], secondary:['glutes'],                   equip:'machine' },
@@ -521,6 +597,197 @@ const EM = {
   v_seitheben:  { primary:['shoulders'], secondary:[],                       equip:'cable' },
   v_bauch_b:    { primary:['core'], secondary:[],                            equip:'mat' }
 };
+
+// ── EXERCISE DETAILED DATABASE (offline-ready) ─────────────────
+// Image URLs from yuhonas/free-exercise-db (MIT license) via GitHub raw
+const EX_IMG_BASE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
+const EXERCISE_DB = {
+  bench: {
+    variant: 'Bankdrücken (Flachbank, Langhantel)', en: 'Barbell Bench Press',
+    imgId: 'Barbell_Bench_Press_-_Medium_Grip',
+    setup: 'Auf Flachbank, Schulterblätter retrahiert + depressiert (in Bank drücken), Füße fest, leichte Brückung, Stange auf Höhe Schulterlinie.',
+    cues: ['Stange zu unterer Brust, nicht Hals', 'Handgelenke gerade über Ellbogen', 'Ellbogen ~60-75° (nicht 90°)', 'Powerdrive aus Beinen durch Fersen'],
+    mistakes: ['Ellbogen flared out → Schulterschmerzen', 'Po hebt ab → disqualifiziert & gefährlich', 'Stange auf Hals/Gesicht', 'Bouncing von der Brust'],
+    tempo: '2-1-X-1', restSec: 120, plateBar: 20, unilateral: false, priority: 1
+  },
+  ohp: {
+    variant: 'Stehendes Schulterdrücken (Military Press)', en: 'Standing Barbell Overhead Press',
+    imgId: 'Barbell_Shoulder_Press',
+    setup: 'Stange Vorderdelt, Griff schulterbreit, Core fest, Glutes angespannt, Kopf leicht nach hinten damit Stange vorbeikommt.',
+    cues: ['Stange direkt über Schultergelenk oben (nicht vorn)', 'Kopf unter Stange schieben am Top', 'Core & Glutes dauerhaft fest', 'Unterarme senkrecht'],
+    mistakes: ['Hohlkreuz → Bandscheibe', 'Stange zu weit vorn → Schultern', 'Knie mitdrücken → das ist Push Press', 'Locker werden im Rumpf'],
+    tempo: '2-1-X-1', restSec: 120, plateBar: 20, unilateral: false, priority: 1
+  },
+  incline: {
+    variant: 'Schrägbankdrücken (30° Bank, Kurzhanteln)', en: 'Incline Dumbbell Press',
+    imgId: 'Incline_Dumbbell_Press',
+    setup: 'Bank auf 30° (NICHT 45° — dann wird es OHP), Hanteln mit Knie-Kick hoch, Schulterblätter retrahiert.',
+    cues: ['Hanteln leicht innen zueinander führen oben', 'Nicht zusammenknallen', 'Volle Streckung aber nicht Ellbogen lock', '2s ablassen, explosiv hoch'],
+    mistakes: ['Bank zu steil (>30° = Schulter)', 'Ellbogen zu weit flared', 'Schulterblätter flach auf Bank → verlieren Stabilität'],
+    tempo: '2-1-X-0', restSec: 90, plateBar: null, unilateral: false, priority: 2
+  },
+  lateral: {
+    variant: 'Seitheben am Kabel (unilateral)', en: 'Cable Lateral Raise',
+    imgId: 'Side_Lateral_Raise',
+    setup: 'Kabel auf unterer Stufe, gegenüberliegende Hand am Griff, leichter Vorwärtslean Richtung Kabel, Ellbogen minimal gebeugt.',
+    cues: ['Aus Seitdelt heben, NICHT aus Trapezius', 'Nur bis Schulterhöhe (nicht höher)', '"Gießkannen"-Bewegung: kleiner Finger hoch', 'Negativphase 3s kontrolliert'],
+    mistakes: ['Schwung aus Hüfte', 'Schultern hochziehen (Trap takeover)', 'Arm zu stark gebeugt → Bizeps übernimmt'],
+    tempo: '2-1-2-0', restSec: 60, plateBar: null, unilateral: true, priority: 2
+  },
+  pushdown: {
+    variant: 'Trizeps-Pushdown am Kabel (Seilgriff)', en: 'Triceps Pushdown - Rope',
+    imgId: 'Triceps_Pushdown',
+    setup: 'Kabel oben, Seilgriff, Ellbogen fest am Körper fixiert (nicht bewegen), leichter Vorwärtslean.',
+    cues: ['Ellbogen pivot-only, nicht wandern', 'Unten Seil auseinander ziehen für extra Squeeze', 'Volle Streckung, 1s halten', 'Oberkörper stabil'],
+    mistakes: ['Ellbogen wandern nach vorn = Brustarbeit', 'Schultern nach vorn = Rückenarbeit', 'Zu viel Gewicht → Schwung'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: false, priority: 2
+  },
+  legpress: {
+    variant: 'Beinpresse (45° oder horizontal)', en: 'Leg Press',
+    imgId: 'Leg_Press',
+    setup: 'Rücken & Po fest am Polster (KRITISCH: kein Lifting!), Füße schulterbreit mittig auf Platte, Knie in Zehenrichtung.',
+    cues: ['Knie NIE voll strecken (ACL-Schutz)', 'Tief ablassen bis ~90° Knie', 'Druck aus Ferse, nicht Ballen', 'Po bleibt im Polster'],
+    mistakes: ['Po hebt ab → Lendenwirbel Risiko', 'Knie nach innen (valgus) → Meniskus/ACL', 'Zu tief ablassen → LWS rundet'],
+    tempo: '2-1-X-0', restSec: 120, plateBar: null, unilateral: false, priority: 1
+  },
+  bulgarian: {
+    variant: 'Bulgarische Kniebeuge (Kurzhanteln, hinterer Fuß erhöht)', en: 'Bulgarian Split Squat',
+    imgId: 'Dumbbell_Lunges',
+    setup: 'Hinterer Fuß auf Bank (~50cm), vorderer Fuß weit genug vorn dass Knie beim Ablassen nicht über Zehen geht, aufrechter Oberkörper.',
+    cues: ['Hauptdruck vorderer Fuß', 'Hinterer nur Balance', 'Knie in Zehenrichtung', 'Stand weit genug für ~90° vorderes Knie'],
+    mistakes: ['Stand zu kurz → Knie weit über Zehen', 'Knie kollabiert nach innen (ACL-Risiko!)', 'Oberkörper fällt nach vorn'],
+    tempo: '3-1-X-0', restSec: 90, plateBar: null, unilateral: true, priority: 1,
+    warning: 'ACL-Schlüsselübung — Technik vor Gewicht. Bei Instabilität Gewicht reduzieren.'
+  },
+  legcurl: {
+    variant: 'Liegender Beinbeuger (Prone Leg Curl)', en: 'Lying Leg Curl',
+    imgId: 'Lying_Leg_Curls',
+    setup: 'Flach liegend, Polster knapp ÜBER Achillessehne (nicht auf Wade), Kniegelenk direkt an Gelenk-Pivot, Hüfte fest auf Bank.',
+    cues: ['Hüfte bleibt FLACH auf Bank (Po nicht heben)', 'Voller ROM: Fersen zum Po', 'Negativphase 3s', 'Füße flex → Fokus Ischios / point → mehr Wade'],
+    mistakes: ['Po hebt hoch → Ischios entlastet', 'Polster zu hoch am Wadl → Hebel falsch', 'Schwung durch Hüfte'],
+    tempo: '2-1-3-0', restSec: 75, plateBar: null, unilateral: false, priority: 1
+  },
+  hipthrust: {
+    variant: 'Hip Thrust (Langhantel, Schulterblätter Bankkante)', en: 'Barbell Hip Thrust',
+    imgId: 'Barbell_Hip_Thrust',
+    setup: 'Schulterblätter auf Bankkante, Stange auf Hüftfalte (Polster!), Füße flach auf Boden schulterbreit, Knie ~90° oben.',
+    cues: ['Oben: Rippen runter, Glutes MAX squeeze 1s', 'Kinn leicht zur Brust (Neutral)', 'Druck durch Fersen', 'Körper von Knie bis Schulter eine Linie oben'],
+    mistakes: ['Hohlkreuz oben (Rippen flaren)', 'Zu tief ablassen (Po berührt Boden)', 'Knie flaren nach außen'],
+    tempo: '2-1-X-1', restSec: 120, plateBar: 20, unilateral: false, priority: 1
+  },
+  stepups: {
+    variant: 'Step-ups auf Box (Kurzhanteln)', en: 'Dumbbell Step Ups',
+    imgId: 'Dumbbell_Step_Ups',
+    setup: 'Box ~40-50cm hoch, Kurzhanteln seitlich, ganzen Fuß auf Box (Ferse mit drauf), Oberkörper aufrecht.',
+    cues: ['Druck komplett aus vorderem Fuß', 'Hinteres Bein NICHT abdrücken', 'Langsam ablassen mit Kontrolle', 'Knie stabil über Fuß'],
+    mistakes: ['Mit Zehen abdrücken vom Boden = Mogeln', 'Knie kollabiert einwärts', 'Box zu hoch → Hüftbeuger übernimmt'],
+    tempo: '2-1-X-2', restSec: 75, plateBar: null, unilateral: true, priority: 2
+  },
+  calf: {
+    variant: 'Stehendes Wadenheben (Maschine oder Smith)', en: 'Standing Calf Raise',
+    imgId: 'Standing_Dumbbell_Calf_Raise',
+    setup: 'Fußballen auf Platte/Stufe, Fersen hängen frei, Knie gestreckt aber nicht locked, aufrecht.',
+    cues: ['Volle Dehnung unten (Ferse tief)', 'Maximale Spannung oben 1s halten', 'Keine Knie-Bewegung (nur Knöchel)', 'Ohne Schwung'],
+    mistakes: ['Halber ROM (nur halb hoch)', 'Knie beugen → Soleus statt Gastrocnemius', 'Bouncing'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: false, priority: 2
+  },
+  pullups: {
+    variant: 'Klimmzüge (Weiter Obergriff) / Latzug als Ersatz', en: 'Pull Ups / Lat Pulldown',
+    imgId: 'Pullups',
+    setup: 'Obergriff etwas weiter als schulterbreit, Schulterblätter zuerst aktivieren (Scapular Pull), dann hochziehen.',
+    cues: ['Kinn über Stange oder Oberbrust zu Kabel', 'Ellbogen zur Hüfte ziehen (nicht nur Arme)', 'Volles Hängen unten (aber Schulter-aktiv)', 'Keine Beinbewegung/Kipping'],
+    mistakes: ['Nur Bizeps arbeiten lassen', 'Halber ROM (Kinn erreicht Stange nicht)', 'Kipping/Schwung'],
+    tempo: '2-1-X-2', restSec: 120, plateBar: null, unilateral: false, priority: 1
+  },
+  bbrow: {
+    variant: 'Langhantelrudern vorgebeugt (Overhand-Griff)', en: 'Bent Over Barbell Row',
+    imgId: 'Bent_Over_Barbell_Row',
+    setup: 'Füße hüftbreit, Hüfte hinten, Oberkörper ~45°, Rücken neutral, Stange vor Schienbein.',
+    cues: ['Zur unteren Rippe/Bauchnabel ziehen', 'Ellbogen nah am Körper', 'Schulterblätter zusammendrücken oben', 'Oberkörperwinkel KONSTANT halten (nicht aufrichten)'],
+    mistakes: ['Runder Rücken → LWS Risiko!', 'Aufrichten bei jeder Wiederholung → Schwung', 'Zu weit oben/Brust hochziehen'],
+    tempo: '2-1-X-1', restSec: 120, plateBar: 20, unilateral: false, priority: 1
+  },
+  cablerow: {
+    variant: 'Sitzendes Kabelrudern (Enger Neutralgriff)', en: 'Seated Cable Row',
+    imgId: 'Seated_Cable_Rows',
+    setup: 'Knie leicht gebeugt, Oberkörper aufrecht, neutraler Griff (Palms zueinander), Schulterblätter retrahiert vor dem Ziehen.',
+    cues: ['Zur UNTEREN Bauch/Nabel ziehen (nicht Brust)', 'Ellbogen dicht am Körper', 'Schulterblätter am Ende 1s zusammen', 'Oberkörper KEIN Schwung'],
+    mistakes: ['Mit Lehnen hinten arbeiten → LWS', 'Zur Brust ziehen = Rear-Delt-Übung', 'Ellbogen raus = Trapez'],
+    tempo: '2-1-X-1', restSec: 90, plateBar: null, unilateral: false, priority: 2
+  },
+  facepull: {
+    variant: 'Face Pulls (Kabel, Seil auf Kopfhöhe)', en: 'Face Pull',
+    imgId: 'Face_Pull',
+    setup: 'Kabel Kopf-/leicht darüber, Seilgriff, Schritt zurück bis Spannung, leichter Lean zurück, Ellbogen hoch.',
+    cues: ['Zum Gesicht ziehen, Hände zu den Ohren', 'Daumen nach HINTEN am Endpunkt (Außenrotation)', 'Ellbogen mind. schulterhoch', 'Rumpf stabil'],
+    mistakes: ['Wie Row ziehen (Ellbogen tief)', 'Keine Außenrotation → nur Trapezius', 'Gewicht zu hoch → Schwung'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: false, priority: 2
+  },
+  hammer: {
+    variant: 'Hammer Curls alternierend (Kurzhanteln)', en: 'Alternate Hammer Curl',
+    imgId: 'Alternate_Hammer_Curl',
+    setup: 'Neutralgriff (Daumen oben), Kurzhanteln neben Körper, Ellbogen fix am Rippen, aufrecht.',
+    cues: ['Neutralgriff die GANZE Bewegung', 'Ellbogen bewegt sich NICHT nach vorn', 'Oberkörper stabil (kein Kicking)', 'Bis fast Schulter, nicht zusammenklatschen'],
+    mistakes: ['Ellbogen wandern nach vorn', 'Schwungen aus Hüfte', 'Schultern hochziehen'],
+    tempo: '2-1-X-0', restSec: 60, plateBar: null, unilateral: true, priority: 2
+  },
+  abrollout: {
+    variant: 'Ab-Rollout mit Rad (von Knien oder Stand)', en: 'Ab Wheel Rollout',
+    imgId: 'Barbell_Ab_Rollout',
+    setup: 'Knie auf Matte (Anfänger) oder Stand (Advanced), Hände am Rad, Hüfte leicht gebeugt, Core komplett an.',
+    cues: ['Core hält gesamte Zeit Spannung', 'Leichter Katzenbuckel-Tendenz (NICHT Hohlkreuz!)', 'So weit raus wie du zurückkommst', 'Ausatmen beim Rausrollen'],
+    mistakes: ['Hüfte senkt ab → Hohlkreuz → LWS-Risiko!', 'Zu weit raus bei schwachem Core', 'Arme statt Core ziehen zurück'],
+    tempo: '3-1-X-1', restSec: 60, plateBar: null, unilateral: false, priority: 2
+  },
+  // ── NEW: Forearm-Fokus (user-requested größere Unterarme) ──
+  wristcurl: {
+    variant: 'Handgelenk-Curls (Kurzhanteln, sitzend, Unterarme auf Oberschenkel)', en: 'Wrist Curl',
+    imgId: 'Seated_Palms_Up_Barbell_Wrist_Curl',
+    setup: 'Sitzen auf Bank, Unterarme auf Oberschenkeln, Handflächen nach oben, Handgelenke überm Knie.',
+    cues: ['Nur Handgelenk bewegt sich', 'Voller ROM: komplett runter + komplett hoch gerollt', 'Langsam 2-3s negativ', 'Finger können unten leicht öffnen für extra ROM'],
+    mistakes: ['Unterarm hebt → cheating', 'Zu schnell (keine Kontrolle)', 'Zu schwere Gewichte'],
+    tempo: '2-1-X-1', restSec: 45, plateBar: null, unilateral: false, priority: 3
+  },
+  revwristcurl: {
+    variant: 'Reverse Wrist Curls (Handrücken nach oben)', en: 'Reverse Wrist Curl',
+    imgId: 'Wrist_Roller',
+    setup: 'Wie Wristcurl aber Handrücken nach oben (Pronation), Unterarm auf Oberschenkel.',
+    cues: ['Handrücken bleibt dominant', 'Hoch rollen bis Extension voll', 'Langsam kontrolliert zurück', 'Geringes Gewicht, hoher ROM'],
+    mistakes: ['Hantel rutscht aus', 'Zu viel Gewicht → keine Extension'],
+    tempo: '2-1-X-1', restSec: 45, plateBar: null, unilateral: false, priority: 3
+  },
+  farmerwalk: {
+    variant: 'Farmer\'s Walk (Kurzhanteln, ~20m)', en: 'Farmers Walk',
+    imgId: 'Farmers_Walk',
+    setup: 'Schwere Hanteln seitlich, Schultern ZURÜCK, Core an, Blick geradeaus.',
+    cues: ['Kurze schnelle Schritte', 'Schultern nicht nach vorn ziehen lassen', 'Nicht ins Hohlkreuz', 'So schwer wie möglich für Distanz'],
+    mistakes: ['Shuffling zu langsam', 'Hängende Schultern', 'Lehnen zur Seite'],
+    tempo: 'walk', restSec: 90, plateBar: null, unilateral: false, priority: 3
+  },
+  plank_a: {
+    variant: 'Plank (Unterarmstütz)', en: 'Plank',
+    imgId: 'Front_Plank',
+    setup: 'Unterarme schulterbreit, Ellbogen unter Schultern, Körper komplett gerade von Ferse bis Kopf.',
+    cues: ['Rippen runter, Glutes angespannt', 'Atmen fließend', 'Nicht nach oben spitzen (Hüfte hoch)', 'Nicht nach unten hängen'],
+    mistakes: ['Hüfte zu hoch → passive Ruhe', 'Hüfte zu tief → LWS-Stress', 'Atem anhalten'],
+    tempo: 'hold', restSec: 45, plateBar: null, unilateral: false, priority: 2
+  },
+  bauch_4x2: {
+    variant: '4×2 Bauch-Programm (Alex\'s eigener Block)', en: 'Custom Ab Circuit',
+    imgId: 'Crunches',
+    setup: '4 Blöcke mit je 2 Übungen. Pause nur zwischen Blöcken (~15s). Eigenes Programm je nach Fokus.',
+    cues: ['Bauch aktiv, nicht mit Nacken ziehen', 'Kontrolle > Geschwindigkeit', 'Ausatmen bei Kontraktion'],
+    mistakes: ['Nacken reißen', 'Zu schnell, kein ROM'],
+    tempo: 'circuit', restSec: 15, plateBar: null, unilateral: false, priority: 2
+  }
+};
+
+function getExDetail(exId){
+  // Handle vicky-prefixed IDs by fallback to base
+  if(EXERCISE_DB[exId])return EXERCISE_DB[exId];
+  const base=exId.replace(/^v_/,'');
+  return EXERCISE_DB[base]||null;
+}
 
 function getEquipIcon(equipKey, color='currentColor') {
   const ic = EQUIP_ICONS[equipKey] || EQUIP_ICONS.machine;
@@ -595,7 +862,7 @@ const ALEX_PLAN = {
         {id:"calf",     name:"Wadenheben",            equipment:"Maschine · oder Treppe",  sets:4,reps:15,weight:40, notes:"Voller ROM · oben 1s halten · wichtig für Lauf-Abstoß"}
       ]
     },
-    { id:"pull", name:"Pull", label:"C", subtitle:"Rücken · Bizeps · Core",
+    { id:"pull", name:"Pull", label:"C", subtitle:"Rücken · Bizeps · Unterarme · Core",
       color:"#38BDF8", colorLight:"rgba(56,189,248,.14)",
       exercises:[
         {id:"pullups",  name:"Klimmzüge / Latzug",  equipment:"Klimmzugstange · oder Kabel 60 kg",sets:4,reps:8, weight:0,   notes:"BW bevorzugt · voller ROM · Schulterblätter aktiv anziehen"},
@@ -603,6 +870,8 @@ const ALEX_PLAN = {
         {id:"cablerow", name:"Kabelrudern",          equipment:"Kabelturm · enger Griff",          sets:3,reps:12,weight:50,  notes:"Kein Schwung · Schulterblätter am Ende zusammendrücken · 1s halten"},
         {id:"facepull", name:"Face Pulls",           equipment:"Kabel · Seilgriff · Kopfhöhe",     sets:3,reps:15,weight:18,  notes:"Außenrotation betonen · Schulterstabilisierung · wichtig für Haltung"},
         {id:"hammer",   name:"Hammer Curls",         equipment:"Hanteln · alternierend",           sets:3,reps:12,weight:16,  notes:"Neutralgriff · keine Schulternbewegung · 2s senken"},
+        {id:"wristcurl",name:"Handgelenk-Curls",     equipment:"Kurzhanteln · sitzend",            sets:3,reps:15,weight:8,   notes:"Unterarm fest auf Oberschenkel · voller ROM · 2s negativ"},
+        {id:"revwristcurl",name:"Reverse Wrist Curls",equipment:"Kurzhanteln · Pronation",         sets:2,reps:15,weight:5,   notes:"Handrücken oben · leichter · höhere Reps"},
         {id:"abrollout",name:"Ab-Rollout",           equipment:"Ab-Rad · oder Kabel unten",        sets:3,reps:10,weight:null,notes:"Core hält immer die Spannung · Hüfte nicht absinken lassen"}
       ]
     }
@@ -1227,7 +1496,18 @@ function startTodayWkt() {
 }
 
 function startWkt(idx) {
-  const plan=getPlan(state.user);const w=plan.workouts[idx];
+  // If no duration budget chosen yet, show picker first
+  if(state._durationBudget==null && !state._skipDurPicker){openDurPicker(idx);return;}
+  const plan=getPlan(state.user);const w=JSON.parse(JSON.stringify(plan.workouts[idx]));
+  // Apply duration budget: filter by priority & adjust set count
+  const budget=state._durationBudget||60;
+  const preset=DUR_PRESETS.find(p=>p.mins===budget)||DUR_PRESETS[1];
+  w.exercises=w.exercises.filter(ex=>{
+    const prio=EXERCISE_DB[ex.id]?.priority||2;
+    return prio<=preset.maxPrio;
+  }).map(ex=>({...ex,sets:Math.max(1,ex.sets+preset.setsDelta)}));
+  state._sessionBudgetMins=budget;
+  state._sessionW=w; // session-level plan copy (for swaps)
   state.wIdx=idx;state.sets={};state.ratings={};state.actualW={};state.notes={};
   state.timerPaused=false;state.pauseOffset=0;state.pauseStart=0;
   restStartTs=0;restTotal=0;
@@ -1236,7 +1516,7 @@ function startWkt(idx) {
     state.sets[ex.id]=Array.from({length:ex.sets},()=>({reps:ex.reps??null,weight:cw,done:false}));
   });
   document.getElementById('wt').textContent=`${w.name} ${w.label}`;
-  document.getElementById('wt-sub').textContent=w.subtitle;
+  document.getElementById('wt-sub').textContent=`${w.subtitle} · ${budget}min`;
   renderExercises(w);updateProgress(w);
   state.startTime=Date.now();clearInterval(state.ti);
   state.ti=setInterval(()=>{
@@ -1247,10 +1527,12 @@ function startWkt(idx) {
   showScreen('workout');
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   document.getElementById('nav-workout').classList.add('active');
+  acquireWakeLock();
   persistActive();
   // Safety net: persist every 5s in case any mutation slipped through
   if(state._persistInterval)clearInterval(state._persistInterval);
   state._persistInterval=setInterval(persistActive,5000);
+  state._durationBudget=null; // consumed
 }
 
 function toggleTimer() {
@@ -1276,8 +1558,8 @@ function confirmLeaveWorkout() {
     log[today()]={workoutIndex:state.wIdx,sets:state.sets,duration:dur,completed:false,ts:Date.now(),notes:state.notes};
     saveLog(state.user,log);
     if(hasSb())sbSaveEntry(state.user,today(),log[today()]);
-    clearActive();
-    state.startTime=null;
+    clearActive();releaseWakeLock();
+    state.startTime=null;state._sessionW=null;
     loadDashboard();navTo('dashboard');
     showToast('Fortschritt gespeichert');
   }
@@ -1339,9 +1621,11 @@ function renderExercises(w) {
     return `${ssGroupOpen}
     <div class="card fi fi${Math.min(ei+1,6)} ${ssLinkClass}" style="margin-bottom:12px;border-top:2px solid ${eColor}30">
       <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
-        <div class="equip-icon" style="background:${w.colorLight};color:${eColor}">${getEquipIcon(equipKey,eColor)}</div>
-        <div style="flex:1;min-width:0">
-          <div class="subheading" style="margin-bottom:1px">${ex.name}</div>
+        <div class="equip-icon" style="background:${w.colorLight};color:${eColor};cursor:pointer" onclick="showExDetail('${ex.id}')">${getEquipIcon(equipKey,eColor)}</div>
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="showExDetail('${ex.id}')">
+          <div class="subheading" style="margin-bottom:1px;display:flex;align-items:center;gap:5px">${ex.name}
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" style="opacity:.5;flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          </div>
           <div style="font-size:11px;color:var(--muted)">${ex.equipment}</div>
           ${lastPerf?`<div style="font-size:11px;color:var(--sec);margin-top:2px">Letztes Mal: ${lastPerf}</div>`:''}
           ${tags?`<div style="margin-top:6px;display:flex;flex-wrap:wrap">${tags}</div>`:''}
@@ -1389,13 +1673,32 @@ function toggleNote(exId) {
   if(el)el.style.display=el.style.display==='none'?'block':'none';
 }
 
+function currentWkt(){
+  return state._sessionW||getPlan(state.user)?.workouts?.[state.wIdx];
+}
 function toggleSet(exId,si,evt) {
   const s=state.sets[exId][si];s.done=!s.done;
   const chkEl=document.getElementById(`chk-${exId}-${si}`);
   chkEl.classList.toggle('done',s.done);
-  const plan=getPlan(state.user);const w=plan.workouts[state.wIdx];
+  const w=currentWkt();
   updateProgress(w);
   persistActive();
+  if(s.done){
+    haptic(30);
+    // PR detection
+    const pr=checkPR(exId,s.weight,s.reps);
+    if(pr){celebratePR(exId,pr);chkEl.classList.add('pr-set');}
+    // Real-time L/R asymmetry warning (if user marked side)
+    if(s.side){
+      const siblings=state.sets[exId].filter(x=>x.done);
+      const lSum=siblings.filter(x=>x.side==='L').reduce((a,x)=>a+(x.reps||0),0);
+      const rSum=siblings.filter(x=>x.side==='R').reduce((a,x)=>a+(x.reps||0),0);
+      if(lSum&&rSum&&Math.abs(lSum-rSum)>=3){
+        const stronger=lSum>rSum?'Links':'Rechts';
+        showToast(`⚠️ Asymmetrie: ${stronger} führt ${Math.abs(lSum-rSum)} Reps vor`);
+      }
+    }
+  }
   // Confetti burst on completion
   if(s.done && evt) {
     spawnConfetti(chkEl);
@@ -1459,7 +1762,7 @@ function finishWorkout() {
   log[today()]={workoutIndex:state.wIdx,sets:state.sets,duration:dur,completed:false,ts:Date.now(),notes:state.notes};
   saveLog(state.user,log);
   if(hasSb())sbSaveEntry(state.user,today(),log[today()]);
-  clearActive();
+  clearActive();releaseWakeLock();state._sessionW=null;
   renderFeedback();showScreen('feedback');
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   // KI-Analyse automatisch starten
@@ -1468,7 +1771,7 @@ function finishWorkout() {
 
 // ── FEEDBACK ───────────────────────────────────────────────────
 function renderFeedback() {
-  const plan=getPlan(state.user);const w=plan.workouts[state.wIdx];const el=document.getElementById('fb-list');
+  const plan=getPlan(state.user);const w=currentWkt()||plan.workouts[state.wIdx];const el=document.getElementById('fb-list');
   el.innerHTML=w.exercises.map((ex,i)=>{
     const done=(state.sets[ex.id]||[]).filter(s=>s.done).length;if(!done)return'';
     const cw=getCW(state.user,ex.id,ex.weight);
@@ -1521,7 +1824,7 @@ function rate(exId,r) {
 let _aiRunning=false;
 async function runAI() {
   if(_aiRunning)return;_aiRunning=true;
-  const plan=getPlan(state.user);const w=plan.workouts[state.wIdx];
+  const plan=getPlan(state.user);const w=currentWkt()||plan.workouts[state.wIdx];
   const btn=document.getElementById('ai-btn');const res=document.getElementById('ai-res');
   btn.innerHTML=`<div class="spinner"></div> KI analysiert...`;btn.disabled=true;res.style.display='none';
   const exData=w.exercises.map(ex=>({
@@ -2019,6 +2322,402 @@ function updateVickyCard(plan) {
   const sub=document.getElementById('vicky-sub');const bdg=document.getElementById('vicky-bdg');
   if(sub)sub.textContent=plan.workouts.map(w=>w.name).join(' · ');
   if(bdg)bdg.innerHTML=`<span class="badge be">${plan.workouts.length}× Split</span><span class="badge bp">KI-generiert</span>`;
+}
+
+// ── EXERCISE DETAIL MODAL ────────────────────────────────────────
+function showExDetail(exId){
+  const d=getExDetail(exId);if(!d)return;
+  const plan=getPlan(state.user);
+  const ex=plan?.workouts?.flatMap(w=>w.exercises).find(e=>e.id===exId);
+  const currentW=state.user?getCW(state.user,exId,ex?.weight):(ex?.weight||0);
+  const doneSets=state.sets[exId]?.filter(s=>s.done)||[];
+  const bestSet=doneSets.reduce((b,s)=>(!b||(s.weight||0)*(s.reps||0)>(b.weight||0)*(b.reps||0))?s:b,null);
+  const oneRM=bestSet&&bestSet.weight&&bestSet.reps?Math.round(bestSet.weight*(1+bestSet.reps/30)):null;
+  const imgBase=EX_IMG_BASE+d.imgId+'/images/';
+  const el=document.getElementById('ex-modal');
+  el.innerHTML=`
+    <div class="ex-modal-header">
+      <div class="ex-modal-imgs">
+        <img src="${imgBase}0.jpg" loading="lazy" alt="start" onerror="this.style.display='none';this.parentElement.classList.add('empty-imgs')">
+        <img src="${imgBase}1.jpg" loading="lazy" alt="end" onerror="this.style.display='none';this.parentElement.classList.add('empty-imgs')">
+      </div>
+      <button onclick="closeExModal()" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.6);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;z-index:2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="ex-modal-body">
+      <div class="label" style="margin-bottom:3px">${d.en||''}</div>
+      <div class="heading" style="font-size:22px;line-height:1.2;margin-bottom:4px">${ex?.name||d.variant.split('(')[0].trim()}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${d.variant}</div>
+      ${d.warning?`<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px;margin-bottom:14px;font-size:12px;color:var(--red);line-height:1.5">⚠️ ${d.warning}</div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div class="card-inner" style="padding:10px;text-align:center">
+          <div class="label" style="font-size:9px;margin-bottom:2px">Gewicht</div>
+          <div style="font-size:16px;font-weight:800">${currentW||ex?.weight||0}<span style="font-size:10px;color:var(--muted)">kg</span></div>
+        </div>
+        <div class="card-inner" style="padding:10px;text-align:center">
+          <div class="label" style="font-size:9px;margin-bottom:2px">Tempo</div>
+          <div style="font-size:14px;font-weight:800">${d.tempo||'—'}</div>
+        </div>
+        <div class="card-inner" style="padding:10px;text-align:center">
+          <div class="label" style="font-size:9px;margin-bottom:2px">Pause</div>
+          <div style="font-size:16px;font-weight:800">${d.restSec||90}<span style="font-size:10px;color:var(--muted)">s</span></div>
+        </div>
+      </div>
+      ${d.plateBar?`<div class="card-inner" style="padding:12px;margin-bottom:14px">
+        <div class="label" style="margin-bottom:6px">Plate-Rechner (${d.plateBar}kg Stange)</div>
+        <div id="plate-display">${plateCalc(currentW||ex?.weight||d.plateBar,d.plateBar)}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+          <input class="wi" id="plate-input" type="number" step="0.5" value="${currentW||ex?.weight||d.plateBar}" style="flex:1;width:auto" oninput="document.getElementById('plate-display').innerHTML=plateCalc(parseFloat(this.value)||0,${d.plateBar})">
+          <span style="font-size:11px;color:var(--muted)">kg</span>
+        </div>
+      </div>`:''}
+      ${oneRM?`<div class="card-inner" style="padding:10px;margin-bottom:14px;background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(139,92,246,.04))">
+        <div class="label">Geschätzes 1RM (Epley, bestes Set heute)</div>
+        <div style="font-size:20px;font-weight:800;color:var(--amber)">~${oneRM} kg</div>
+        <div style="font-size:11px;color:var(--muted)">Basis: ${bestSet.reps}×${bestSet.weight}kg</div>
+      </div>`:''}
+      <div class="label" style="margin-top:6px;margin-bottom:6px">Setup</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--sec);margin-bottom:14px">${d.setup}</div>
+      <div class="label" style="margin-bottom:4px">✓ Technik-Cues</div>
+      <div style="margin-bottom:14px">
+        ${d.cues.map(c=>`<div class="ex-cue"><div class="ex-cue-icon" style="background:var(--el);color:var(--emerald)">✓</div><div style="font-size:13px;line-height:1.5;flex:1">${c}</div></div>`).join('')}
+      </div>
+      <div class="label" style="margin-bottom:4px">✗ Häufige Fehler</div>
+      <div style="margin-bottom:14px">
+        ${d.mistakes.map(m=>`<div class="ex-mistake"><div class="ex-cue-icon" style="background:var(--rl);color:var(--red)">✗</div><div style="font-size:13px;line-height:1.5;flex:1;color:var(--sec)">${m}</div></div>`).join('')}
+      </div>
+      ${ex?`<button class="btn btn-s btn-full" style="margin-bottom:8px" onclick="copyLastWeight('${exId}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Gewichte vom letzten Mal übernehmen
+      </button>
+      <button class="btn btn-g btn-full" onclick="swapExercise('${exId}')">Übung tauschen</button>`:''}
+    </div>`;
+  document.getElementById('ex-modal-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeExModal(){
+  document.getElementById('ex-modal-overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+// ── PLATE CALCULATOR ─────────────────────────────────────────────
+const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25, 0.5];
+const PLATE_COLORS = {25:'#EF4444',20:'#3B82F6',15:'#F59E0B',10:'#10B981',5:'#F0F0F5',2.5:'#9CA3AF',1.25:'#9CA3AF',0.5:'#6B7280'};
+function plateCalc(weight,barWeight){
+  if(!weight||weight<barWeight)return `<div style="font-size:12px;color:var(--muted)">Nur Stange (${barWeight}kg) oder leichter</div>`;
+  const perSide=(weight-barWeight)/2;
+  if(perSide<=0)return `<div style="font-size:12px;color:var(--muted)">Nur Stange (${barWeight}kg)</div>`;
+  const platesUsed=[];let rem=perSide;
+  for(const p of PLATES){while(rem>=p-.001){platesUsed.push(p);rem-=p;}}
+  if(Math.abs(rem)>.05)return `<div style="font-size:12px;color:var(--amber)">${weight}kg nicht exakt ladbar — pro Seite ${perSide}kg (Rest ${rem.toFixed(2)}kg)</div>`;
+  const plateHTML=platesUsed.map(p=>{
+    const h=20+p*1.8;const w=Math.max(10,p*.8);
+    return `<div class="plate" style="background:${PLATE_COLORS[p]};height:${Math.min(h,60)}px;width:${w}px">${p}</div>`;
+  }).join('');
+  return `<div class="plate-bar">
+    ${plateHTML}
+    <div class="plate-shaft" style="width:40px"></div>
+    <div class="plate-collar"></div>
+    ${[...platesUsed].reverse().map(p=>{const h=20+p*1.8;const w=Math.max(10,p*.8);return `<div class="plate" style="background:${PLATE_COLORS[p]};height:${Math.min(h,60)}px;width:${w}px">${p}</div>`}).join('')}
+  </div>
+  <div style="text-align:center;font-size:11px;color:var(--muted);margin-top:4px">Pro Seite: ${platesUsed.join(' + ')} kg</div>`;
+}
+
+// ── COPY LAST WEIGHT ─────────────────────────────────────────────
+function copyLastWeight(exId){
+  const log=getLog(state.user);
+  const dates=Object.keys(log).sort().reverse();
+  for(const d of dates){
+    if(d===today())continue;
+    const sets=log[d]?.sets?.[exId];
+    if(sets&&sets.length){
+      const bestW=Math.max(...sets.filter(s=>s.done).map(s=>s.weight||0));
+      if(bestW>0){
+        (state.sets[exId]||[]).forEach(s=>{s.weight=bestW;});
+        persistActive();
+        showToast(`${bestW}kg vom ${fmtDate(d)} übernommen`);
+        closeExModal();
+        const w=getPlan(state.user).workouts[state.wIdx];
+        renderExercises(w);return;
+      }
+    }
+  }
+  showToast('Keine vorherigen Gewichte gefunden');
+}
+
+// ── EXERCISE SWAP ────────────────────────────────────────────────
+const SWAP_MAP = {
+  bench:['incline','Schrägbankdrücken (wenn Flachbank belegt)'],
+  ohp:['lateral','Seitheben (wenn Stange belegt)'],
+  incline:['bench','Flachbank-Drücken'],
+  lateral:['pushdown','Trizeps-Pushdown (wenn Kabel vorhanden)'],
+  pushdown:['lateral','Seitheben'],
+  legpress:['bulgarian','Bulgarische Kniebeuge (wenn Presse belegt)'],
+  bulgarian:['stepups','Step-ups'],
+  legcurl:['hipthrust','Hip Thrust (wenn Maschine belegt)'],
+  hipthrust:['legcurl','Liegender Beinbeuger'],
+  stepups:['bulgarian','Bulgarische Kniebeuge'],
+  calf:['calf','Wadenheben am Smith/Stufen'],
+  pullups:['cablerow','Kabelrudern (wenn Stange belegt)'],
+  bbrow:['cablerow','Kabelrudern'],
+  cablerow:['bbrow','Langhantelrudern'],
+  facepull:['lateral','Seitheben (Rear Variante)'],
+  hammer:['hammer','Hammer Curls am Kabel'],
+  abrollout:['plank_a','Plank (wenn kein Rad)']
+};
+function swapExercise(exId){
+  const swap=SWAP_MAP[exId];if(!swap){showToast('Keine Alternative definiert');return;}
+  if(!confirm(`"${getPlan(state.user).workouts[state.wIdx].exercises.find(e=>e.id===exId)?.name}" tauschen gegen "${swap[1]}"?`))return;
+  // Build a temporary session-only swap (doesn't modify plan)
+  const w=getPlan(state.user).workouts[state.wIdx];
+  const ei=w.exercises.findIndex(e=>e.id===exId);if(ei<0)return;
+  const alt=EXERCISE_DB[swap[0]];
+  const origEx=w.exercises[ei];
+  w.exercises[ei]={...origEx,id:swap[0],name:alt?.variant.split('(')[0].trim()||swap[1],notes:(alt?.cues||[]).slice(0,2).join(' · ')};
+  if(!state.sets[swap[0]])state.sets[swap[0]]=state.sets[exId]||Array.from({length:origEx.sets},()=>({reps:origEx.reps,weight:origEx.weight,done:false}));
+  delete state.sets[exId];
+  persistActive();
+  renderExercises(w);closeExModal();
+  showToast(`Getauscht: ${swap[1]}`);
+}
+
+// ── DURATION PICKER ───────────────────────────────────────────────
+const DUR_PRESETS = [
+  {mins:45, label:'Quick · 45 Min', desc:'Essential Compound-Lifts. Alle Prio-1 Übungen, 3 Sätze. Kein Accessory.', icon:'⚡', color:'var(--amber)', maxPrio:1, setsDelta:-1},
+  {mins:60, label:'Standard · 60 Min', desc:'Vollständiges Programm wie geplant.', icon:'💪', color:'var(--emerald)', maxPrio:2, setsDelta:0},
+  {mins:90, label:'Vollgas · 90 Min', desc:'Plan + Accessory + 1 extra Satz pro Compound.', icon:'🔥', color:'var(--red)', maxPrio:3, setsDelta:1}
+];
+function openDurPicker(idx){
+  state._pendingWktIdx=idx;
+  const w=getPlan(state.user).workouts[idx];
+  document.getElementById('dur-title').textContent=`${w.name} ${w.label}`;
+  const el=document.getElementById('dur-options');
+  el.innerHTML=DUR_PRESETS.map(p=>`<div class="dur-opt" onclick="startWktWithDuration(${p.mins})">
+    <div class="dur-icon" style="background:${p.color.replace('var(--','rgba(').replace(')','')};color:${p.color}">${p.icon}</div>
+    <div style="flex:1">
+      <div class="dur-label">${p.label}</div>
+      <div class="dur-desc">${p.desc}</div>
+    </div>
+  </div>`).join('');
+  document.getElementById('dur-picker').classList.add('open');
+}
+function closeDurPicker(){document.getElementById('dur-picker').classList.remove('open');}
+function startWktWithDuration(mins){
+  closeDurPicker();
+  state._durationBudget=mins;
+  startWkt(state._pendingWktIdx);
+}
+
+// ── WAKE LOCK (keeps screen on during workout) ───────────────────
+let _wakeLock=null;
+async function acquireWakeLock(){
+  try{
+    if('wakeLock' in navigator){
+      _wakeLock=await navigator.wakeLock.request('screen');
+      _wakeLock.addEventListener('release',()=>{_wakeLock=null;});
+    }
+  }catch(e){console.warn('Wake lock failed',e);}
+}
+async function releaseWakeLock(){
+  try{if(_wakeLock){await _wakeLock.release();_wakeLock=null;}}catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&state.startTime&&!_wakeLock)acquireWakeLock();
+});
+
+// ── HAPTIC FEEDBACK ───────────────────────────────────────────────
+function haptic(pattern){try{if(navigator.vibrate)navigator.vibrate(pattern);}catch(e){}}
+
+// ── PR DETECTION ─────────────────────────────────────────────────
+function checkPR(exId,weight,reps){
+  if(!weight||!reps)return false;
+  const log=getLog(state.user);
+  const dates=Object.keys(log).sort();
+  let prWeight=0,prVolume=0,pr1RM=0;
+  for(const d of dates){
+    if(d===today())continue;
+    const sets=log[d]?.sets?.[exId]||[];
+    sets.forEach(s=>{
+      if(!s.done)return;
+      if(s.weight>prWeight)prWeight=s.weight;
+      const v=(s.weight||0)*(s.reps||0);if(v>prVolume)prVolume=v;
+      if(s.weight&&s.reps){const oneRM=s.weight*(1+s.reps/30);if(oneRM>pr1RM)pr1RM=oneRM;}
+    });
+  }
+  const currentVol=weight*reps;const current1RM=weight*(1+reps/30);
+  if(weight>prWeight&&prWeight>0)return {type:'weight',delta:weight-prWeight};
+  if(current1RM>pr1RM*1.01&&pr1RM>0)return {type:'1rm',delta:Math.round(current1RM-pr1RM)};
+  if(currentVol>prVolume&&prVolume>0)return {type:'volume',delta:Math.round(currentVol-prVolume)};
+  return false;
+}
+function celebratePR(exId,pr){
+  haptic([40,60,40,60,80]);
+  const labels={weight:`NEUES GEWICHTS-PR! +${pr.delta}kg`,'1rm':`NEUES 1RM! +${pr.delta}kg`,volume:`NEUES VOLUMEN-PR! +${pr.delta}kg`};
+  showToast('🏆 '+labels[pr.type]);
+  const logNow=getLog(state.user);
+  if(!logNow._prs)logNow._prs=[];
+  logNow._prs.push({exId,date:today(),type:pr.type,delta:pr.delta,ts:Date.now()});
+  saveLog(state.user,logNow);
+}
+
+// ── ADMIN AREA ───────────────────────────────────────────────────
+function openAdmin(){
+  renderAdmin();
+  showScreen('admin');
+}
+function renderAdmin(){
+  const alexPlan=ls.get('alex_plan',null)||ALEX_PLAN;
+  const vickyPlan=ls.get('vicky_plan',null);
+  const alexLog=ls.get('alex_log',{});
+  const vickyLog=ls.get('vicky_log',{});
+  const alexCount=Object.values(alexLog).filter(e=>e?.completed).length;
+  const vickyCount=Object.values(vickyLog).filter(e=>e?.completed).length;
+  const alexPRs=(alexLog._prs||[]).length;
+  const syncStatus=hasSb()?'<span class="badge be">Cloud aktiv</span>':'<span class="badge ba">Offline</span>';
+  document.getElementById('admin-content').innerHTML=`
+    <!-- Nutzer -->
+    <div class="card fi" style="margin-bottom:14px">
+      <div class="label" style="margin-bottom:10px">Nutzer</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div class="av" style="width:44px;height:44px;background:rgba(139,92,246,.14);color:var(--purple);font-size:16px">AP</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700">Alexander</div>
+          <div style="font-size:11px;color:var(--muted)">${alexPlan.workouts.length}× Split · ${alexCount} Trainings · ${alexPRs} PRs</div>
+        </div>
+        <button class="btn btn-s" style="padding:6px 10px;font-size:11px" onclick="editPlan('alex')">Plan</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0">
+        <div class="av" style="width:44px;height:44px;background:rgba(16,185,129,.14);color:var(--emerald);font-size:16px">V</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700">Vicky</div>
+          <div style="font-size:11px;color:var(--muted)">${vickyPlan?vickyPlan.workouts.length+'× Split · '+vickyCount+' Trainings':'Kein Plan'}</div>
+        </div>
+        <button class="btn btn-s" style="padding:6px 10px;font-size:11px" onclick="editPlan('vicky')">Plan</button>
+      </div>
+    </div>
+    <!-- Cloud -->
+    <div class="card fi fi2" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="label">Cloud</div>${syncStatus}
+      </div>
+      <button class="btn btn-s btn-full" onclick="openSbConfig()">Supabase-Verbindung</button>
+    </div>
+    <!-- Daten Export/Import -->
+    <div class="card fi fi3" style="margin-bottom:14px">
+      <div class="label" style="margin-bottom:10px">Daten</div>
+      <button class="btn btn-s btn-full" style="margin-bottom:8px" onclick="exportAllData()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        JSON exportieren
+      </button>
+      <button class="btn btn-s btn-full" style="margin-bottom:8px" onclick="document.getElementById('import-file').click()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        JSON importieren
+      </button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
+      <button class="btn btn-d btn-full" onclick="clearUserData()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+        Alle lokalen Daten löschen
+      </button>
+    </div>
+    <!-- PR-Board -->
+    <div class="card fi fi4" style="margin-bottom:14px">
+      <div class="label" style="margin-bottom:10px">PR-Board (Alex)</div>
+      <div id="pr-board-content"></div>
+    </div>
+    <!-- Stats -->
+    <div class="card fi fi5" style="margin-bottom:14px">
+      <div class="label" style="margin-bottom:10px">System</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="card-inner" style="padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--muted)">localStorage</div>
+          <div style="font-size:14px;font-weight:700">${Math.round(JSON.stringify(localStorage).length/1024)} KB</div>
+        </div>
+        <div class="card-inner" style="padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--muted)">Exercises DB</div>
+          <div style="font-size:14px;font-weight:700">${Object.keys(EXERCISE_DB).length}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center">Version 2 · Build ${new Date().toISOString().slice(0,10)}</div>
+    </div>`;
+  renderPRBoard();
+}
+function renderPRBoard(){
+  const log=ls.get('alex_log',{});
+  const prs=log._prs||[];
+  const el=document.getElementById('pr-board-content');
+  if(!prs.length){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:12px 0;text-align:center">Noch keine PRs. Gib alles im nächsten Training!</div>';return;}
+  const sorted=prs.sort((a,b)=>b.ts-a.ts).slice(0,10);
+  el.innerHTML=sorted.map(pr=>{
+    const ex=EXERCISE_DB[pr.exId];
+    const typeLabel={weight:'Gewicht',volume:'Volumen','1rm':'1RM'}[pr.type];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="width:28px;height:28px;border-radius:8px;background:rgba(245,158,11,.14);color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">🏆</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${ex?.variant?.split('(')[0].trim()||pr.exId}</div>
+        <div style="font-size:11px;color:var(--muted)">${typeLabel} +${pr.delta}kg · ${fmtDate(pr.date)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function editPlan(user){
+  const plan=user==='alex'?(ls.get('alex_plan',null)||ALEX_PLAN):ls.get('vicky_plan',null);
+  if(!plan){showToast('Kein Plan vorhanden');return;}
+  const current=JSON.stringify(plan,null,2);
+  const edited=prompt('Plan als JSON (VORSICHT: falsche JSON zerstört den Plan):',current);
+  if(edited===null||edited===current)return;
+  try{
+    const parsed=JSON.parse(edited);
+    if(!parsed.workouts||!Array.isArray(parsed.workouts))throw new Error('Kein gültiger Plan');
+    ls.set(user+'_plan',parsed);
+    showToast(`${user}'s Plan aktualisiert`);
+    renderAdmin();
+  }catch(e){alert('Ungültiges JSON: '+e.message);}
+}
+function exportAllData(){
+  const data={
+    version:2,
+    exported:new Date().toISOString(),
+    alex:{plan:ls.get('alex_plan',null),log:ls.get('alex_log',{}),weights:ls.get('alex_weights',{}),bodyweight:ls.get('alex_bodyweight',[])},
+    vicky:{plan:ls.get('vicky_plan',null),log:ls.get('vicky_log',{}),weights:ls.get('vicky_weights',{}),bodyweight:ls.get('vicky_bodyweight',[])}
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`gymcoach-backup-${today()}.json`;a.click();
+  URL.revokeObjectURL(url);
+  showToast('Export heruntergeladen');
+}
+function importData(input){
+  const f=input.files?.[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      if(!confirm('WARNUNG: Existierende Daten werden überschrieben. Fortfahren?'))return;
+      ['alex','vicky'].forEach(u=>{
+        if(d[u]){
+          if(d[u].plan)ls.set(u+'_plan',d[u].plan);
+          if(d[u].log)ls.set(u+'_log',d[u].log);
+          if(d[u].weights)ls.set(u+'_weights',d[u].weights);
+          if(d[u].bodyweight)ls.set(u+'_bodyweight',d[u].bodyweight);
+        }
+      });
+      showToast('Import abgeschlossen');
+      renderAdmin();
+    }catch(err){alert('Ungültige JSON-Datei: '+err.message);}
+  };
+  r.readAsText(f);
+  input.value='';
+}
+function clearUserData(){
+  const first=confirm('ALLE lokalen Daten löschen?\n(Alex, Vicky, Logs, Gewichte, Pläne)');
+  if(!first)return;
+  const second=confirm('Wirklich sicher? Diese Aktion kann nicht rückgängig gemacht werden!');
+  if(!second)return;
+  ['alex_plan','vicky_plan','alex_log','vicky_log','alex_weights','vicky_weights','alex_bodyweight','vicky_bodyweight'].forEach(k=>localStorage.removeItem(k));
+  ['gc.active.alex','gc.active.vicky'].forEach(k=>localStorage.removeItem(k));
+  showToast('Alle Daten gelöscht');
+  renderAdmin();
 }
 
 // ── TOAST ──────────────────────────────────────────────────────
