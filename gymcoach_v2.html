@@ -1646,10 +1646,16 @@ function loadDashboard() {
   document.getElementById('dash-gr').textContent=gr;
   document.getElementById('dash-name').textContent=plan.name||state.user;
   const activeWeeks=calcActiveWeeks(state.user);
-  let flames='🔥';if(activeWeeks>=4)flames='🔥🔥';if(activeWeeks>=8)flames='🔥🔥🔥';
-  document.getElementById('streak-n').textContent=activeWeeks+' '+flames;
   const streakEl=document.getElementById('streak-el');
-  if(activeWeeks>4)streakEl.classList.add('hot');else streakEl.classList.remove('hot');
+  if(activeWeeks===0){
+    streakEl.style.display='none';
+  } else {
+    streakEl.style.display='';
+    // 1 Flamme pro aktiver Woche, visuell gekappt bei 5
+    const flames='🔥'.repeat(Math.min(activeWeeks,5))+(activeWeeks>5?`+${activeWeeks-5}`:'');
+    document.getElementById('streak-n').textContent=activeWeeks+' '+flames;
+    if(activeWeeks>=4)streakEl.classList.add('hot');else streakEl.classList.remove('hot');
+  }
   if(!hasSb())document.getElementById('sb-banner').classList.add('show');
   // Resume banner if active workout exists
   const _act=loadActive(state.user);const _rb=document.getElementById('resume-banner');
@@ -1753,18 +1759,24 @@ function renderCoachAlerts(plan){
 
 function calcActiveWeeks(u) {
   const log=getLog(u);
-  const done=Object.entries(log).filter(([,e])=>e.completed).map(([d])=>new Date(d+'T12:00:00'));
+  const done=Object.entries(log).filter(([d,e])=>e&&e.completed&&/^\d{4}-\d{2}-\d{2}$/.test(d)).map(([d])=>new Date(d+'T12:00:00'));
   if(!done.length)return 0;
-  // Zähle konsekutive Wochen mit mindestens 1 Training (rückwärts ab jetzt)
+  // 1 abgeschlossenes Training pro Kalenderwoche = 1 Flamme
+  // Zählt konsekutive Wochen rückwärts. Laufende Woche darf leer sein (Streak bricht erst wenn auch letzte Woche leer).
   const now=new Date();
-  function isoWeek(d){const t=new Date(d);t.setHours(0,0,0,0);t.setDate(t.getDate()+3-(t.getDay()+6)%7*1);const y=new Date(t.getFullYear(),0,4);return Math.round(((t-y)/86400000-3+(y.getDay()+6)%7)/7)+1;}
+  function isoWeek(d){const t=new Date(d);t.setHours(0,0,0,0);t.setDate(t.getDate()+3-(t.getDay()+6)%7);const y=new Date(t.getFullYear(),0,4);return Math.round(((t-y)/86400000-3+(y.getDay()+6)%7)/7)+1;}
   function weekKey(d){const t=new Date(d);t.setDate(t.getDate()+3-(t.getDay()+6)%7);return t.getFullYear()+'-W'+String(isoWeek(d)).padStart(2,'0');}
   const activeSet=new Set(done.map(d=>weekKey(d)));
-  let weeks=0;const check=new Date(now);
-  while(true){
-    const wk=weekKey(check);
-    if(activeSet.has(wk)){weeks++;check.setDate(check.getDate()-7);}
-    else break;
+  let check=new Date(now);
+  // Falls laufende Woche leer: Start ab letzter Woche (aktuelle Woche ist noch nicht vorbei)
+  if(!activeSet.has(weekKey(check))){
+    check.setDate(check.getDate()-7);
+    if(!activeSet.has(weekKey(check)))return 0; // auch letzte Woche leer → Streak gebrochen
+  }
+  let weeks=0;
+  while(activeSet.has(weekKey(check))){
+    weeks++;
+    check.setDate(check.getDate()-7);
   }
   return weeks;
 }
