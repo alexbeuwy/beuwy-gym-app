@@ -151,9 +151,16 @@
     .ex-modal{width:100%;max-width:480px;background:#141418;border-radius:22px 22px 0 0;border-top:1px solid var(--border);padding:0;max-height:88dvh;overflow-y:auto;animation:slideUp .35s cubic-bezier(.32,.72,0,1)}
     @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
     .ex-modal-header{position:relative;overflow:hidden;border-radius:22px 22px 0 0}
-    .ex-modal-imgs{display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
-    .ex-modal-imgs img{width:50%;height:200px;object-fit:cover;flex-shrink:0;scroll-snap-align:start;background:var(--surface)}
-    .ex-modal-imgs .img-fallback{width:100%;height:160px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--surface),rgba(139,92,246,.08));font-size:40px;font-weight:800;color:var(--muted)}
+    .ex-anim{position:relative;width:100%;height:240px;overflow:hidden;background:linear-gradient(135deg,var(--s2),var(--surface))}
+    .ex-anim img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;animation:exFade 1.8s ease-in-out infinite}
+    .ex-anim img:nth-child(1){animation-delay:0s}
+    .ex-anim img:nth-child(2){animation-delay:.9s}
+    @keyframes exFade{0%,40%{opacity:1}50%,90%{opacity:0}100%{opacity:1}}
+    .ex-anim-fallback{width:100%;height:240px;display:flex;align-items:center;justify-content:center;font-size:60px;font-weight:800;color:var(--muted);background:linear-gradient(135deg,var(--s2),var(--surface))}
+    .ex-anim-pause{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;font-size:12px}
+    .ex-anim.paused img{animation-play-state:paused}
+    .ex-anim.paused img:nth-child(1){opacity:1}
+    .ex-anim.paused img:nth-child(2){opacity:0}
     .ex-modal-body{padding:20px}
     .ex-cue{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
     .ex-cue:last-child{border-bottom:none}
@@ -930,6 +937,121 @@ const EXERCISE_DB = {
     cues: ['Plank: Körper gerade von Ferse bis Kopf', 'Russian Twist: Po heben, Füße leicht anheben, Oberkörper rotieren', '3 Sätze Block: 30s Plank + 20 Twists pro Seite'],
     mistakes: ['Plank: Hüfte zu hoch/zu tief', 'Twist: nur Arme drehen (nicht Rumpf)', 'Atmung vergessen'],
     tempo: 'block', restSec: 45, plateBar: null, unilateral: false, priority: 2
+  },
+  // ── EXTRA: Common exercises not in plans (for Katalog browsing) ──
+  squat: {
+    variant: 'Kniebeuge (Langhantel, High-Bar)', en: 'Barbell Squat',
+    imgId: 'Barbell_Squat', setup: 'Stange hoch auf Trapezius, Füße schulterbreit, Zehen leicht auswärts, Core fest, Blick geradeaus.',
+    cues: ['Druck aus Fersen + Außenkante', 'Knie in Zehenrichtung', 'Brust stolz, kein Rücken-Rund', 'Tief ablassen (Hüftfalte unter Knie) wenn Mobility es zulässt'],
+    mistakes: ['Knie fallen nach innen (valgus)', 'Butt wink → LWS-Risiko', 'Nach vorn kippen → Rücken übernimmt'],
+    tempo: '3-1-X-0', restSec: 150, plateBar: 20, unilateral: false, priority: 1,
+    warning: 'ACL-Rehab: nur nach Freigabe · Alternative: Beinpresse oder Box Squat'
+  },
+  deadlift: {
+    variant: 'Kreuzheben (konventionell, Langhantel)', en: 'Conventional Deadlift',
+    imgId: 'Barbell_Deadlift', setup: 'Füße hüftbreit, Stange über Mittelfuß (~2cm von Schienbein), Schultern ÜBER Stange, Rücken neutral.',
+    cues: ['Rücken NEUTRAL die komplette Zeit', 'Stange GLEITET am Schienbein/Oberschenkel hoch', 'Hüfte + Knie gleichzeitig strecken', 'Oben Glutes squeezen, nicht überstrecken'],
+    mistakes: ['Runder Rücken (CARDINAL SIN)', 'Hüfte hebt zu früh = nur Rückenstreckung', 'Stange vom Körper weg = Bizeps-Riss + LWS'],
+    tempo: '2-0-X-0', restSec: 180, plateBar: 20, unilateral: false, priority: 1
+  },
+  rdl: {
+    variant: 'Rumänisches Kreuzheben (Hip Hinge)', en: 'Romanian Deadlift',
+    imgId: 'Romanian_Deadlift', setup: 'Füße hüftbreit, Knie LEICHT gebeugt (fixiert!), Hüfte nach hinten, Stange am Körper runter.',
+    cues: ['Knie-Winkel ÄNDERT SICH NICHT', 'Hüfte weit nach hinten (nicht Kniebeuge!)', 'Stange GLEITET am Oberschenkel', 'Ischios dehnen spüren'],
+    mistakes: ['In Kniebeuge verwandeln', 'Runder Rücken', 'Stange vom Körper weg'],
+    tempo: '3-1-X-0', restSec: 120, plateBar: 20, unilateral: false, priority: 1
+  },
+  dumbbell_bench: {
+    variant: 'Kurzhantel-Bankdrücken (Flachbank)', en: 'Dumbbell Bench Press',
+    imgId: 'Dumbbell_Bench_Press', setup: 'Hanteln mit Knie-Kick hoch, Schulterblätter retrahiert, leichter Arch, Füße fest.',
+    cues: ['Hanteln leicht innen zueinander oben', 'Volle ROM — tiefer als Langhantel möglich', 'Nicht zusammenknallen oben', '2s ablassen'],
+    mistakes: ['Hanteln kippen weg (Kontrollverlust)', 'Schultern vorn statt retrahiert', 'Zu breit unten = Brust-Zerren'],
+    tempo: '2-1-X-1', restSec: 90, plateBar: null, unilateral: false, priority: 2
+  },
+  chest_fly: {
+    variant: 'Butterfly / Pec Deck Maschine', en: 'Pec Deck Fly',
+    imgId: 'Butterfly_Machine', setup: 'Rücken fest am Polster, Unterarme/Ellbogen an Polstern, Sitzhöhe so dass Griffe auf Brusthöhe.',
+    cues: ['Aus Brust zusammenführen, nicht Arme', 'Ellbogen bleiben leicht gebeugt fix', 'Oben 1s max squeeze', 'Langsam zurück, volle Dehnung'],
+    mistakes: ['Mit Schultern arbeiten', 'Schwung', 'Zu schwer → halber ROM'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: false, priority: 3
+  },
+  lat_pulldown: {
+    variant: 'Latzug breit (Obergriff)', en: 'Wide-Grip Lat Pulldown',
+    imgId: 'Wide-Grip_Lat_Pulldown', setup: 'Oberschenkel unter Polster, Obergriff weit, leichter Lean zurück (~15°), Schulterblätter zuerst runter.',
+    cues: ['Zum oberen Brustbein ziehen', 'Ellbogen nach unten & hinten', 'Nicht mit Bizeps ziehen', 'Schulterblätter squeeze am Ende'],
+    mistakes: ['Zu stark hinten lehnen = Bauchrolle', 'Hinter den Kopf (Schulter-Risiko)', 'Nur Arme ziehen'],
+    tempo: '2-1-X-2', restSec: 75, plateBar: null, unilateral: false, priority: 1
+  },
+  dips: {
+    variant: 'Dips (parallele Barren)', en: 'Dips',
+    imgId: 'Dips_-_Chest_Version', setup: 'Oben gestreckt, leichter Vorlean = Brust / aufrecht = Trizeps, Beine gekreuzt unter Körper.',
+    cues: ['Ablassen bis Oberarm parallel zum Boden', 'Ellbogen leicht nach außen (Brust) oder dicht (Trizeps)', 'Brust hoch', 'Nicht lock-out oben'],
+    mistakes: ['Zu tief → Schulter-Stress', 'Schultern hochziehen', 'Bouncing'],
+    tempo: '2-1-X-0', restSec: 90, plateBar: null, unilateral: false, priority: 2
+  },
+  close_grip_bench: {
+    variant: 'Enges Bankdrücken (für Trizeps)', en: 'Close-Grip Bench Press',
+    imgId: 'Close-Grip_Barbell_Bench_Press', setup: 'Griff schulterbreit (NICHT enger als 20cm — Handgelenke!), Ellbogen DICHT am Körper.',
+    cues: ['Ellbogen 30° zum Körper (nicht 90°!)', 'Stange etwas tiefer (unter Brust)', 'Handgelenke neutral', 'Trizeps bewusst drücken'],
+    mistakes: ['Griff zu eng → Handgelenks-Schmerzen', 'Ellbogen flaren', 'Bounce'],
+    tempo: '2-1-X-1', restSec: 90, plateBar: 20, unilateral: false, priority: 2
+  },
+  leg_ext: {
+    variant: 'Beinstrecker (Quadriceps-isoliert)', en: 'Leg Extension',
+    imgId: 'Leg_Extensions', setup: 'Rücken fest am Polster, Knie-Pivot unter Maschinen-Achse, Polster auf Schienbein knapp über Knöchel.',
+    cues: ['Voller ROM: ganz gestreckt oben', 'Oben 1s halten', 'Langsam zurück (3s)', 'Kontrolle > Gewicht'],
+    mistakes: ['Schwung aus Hüfte', 'Halber ROM', 'Po hebt ab'],
+    tempo: '2-1-3-0', restSec: 60, plateBar: null, unilateral: false, priority: 3,
+    warning: 'Bei ACL-Rehab kontraindiziert — offene Kette belastet VKB stark'
+  },
+  goblet_squat: {
+    variant: 'Goblet Squat (Kurzhantel vor Brust)', en: 'Goblet Squat',
+    imgId: 'Dumbbell_Goblet_Squat', setup: 'Kurzhantel vertikal an Brust (beide Hände am oberen Ende), Füße schulterbreit, Zehen leicht auswärts.',
+    cues: ['Hantel an Brust gedrückt', 'Tief ablassen (Hüftfalte unter Knie)', 'Ellbogen schieben Knie auseinander unten', 'Aufrechter Oberkörper'],
+    mistakes: ['Hantel wandert weg', 'Halber ROM', 'Ferse hebt'],
+    tempo: '3-1-X-0', restSec: 90, plateBar: null, unilateral: false, priority: 2
+  },
+  russian_twist: {
+    variant: 'Russian Twist (sitzend)', en: 'Russian Twist',
+    imgId: 'Russian_Twist', setup: 'Auf Po sitzen, Oberkörper ~45° zurück, Füße leicht angehoben (optional), optionales Gewicht an Brust.',
+    cues: ['Aus Rumpf rotieren (nicht nur Arme)', 'Oberkörper-Winkel konstant', 'Langsam + kontrolliert', 'Atmen'],
+    mistakes: ['Nur mit Armen schwenken', 'Oberkörper fällt zurück', 'Zu schnell'],
+    tempo: 'tempo', restSec: 30, plateBar: null, unilateral: false, priority: 2
+  },
+  hanging_leg_raise: {
+    variant: 'Hängendes Beinheben (an Klimmzugstange)', en: 'Hanging Leg Raise',
+    imgId: 'Hanging_Leg_Raise', setup: 'An Stange hängen, Schulterblätter aktiv (nicht tot hängen!), Beine gestreckt oder leicht gebeugt.',
+    cues: ['Beine bis mindestens parallel heben', 'Unteren Rücken einrollen am Top (Becken kippt)', 'Langsam ablassen (3s)', 'Kein Schwung'],
+    mistakes: ['Beine zu früh fallen lassen', 'Schwungen', 'Schultern passiv → Schulter-Risiko'],
+    tempo: '2-1-3-0', restSec: 75, plateBar: null, unilateral: false, priority: 2
+  },
+  bb_curl: {
+    variant: 'Langhantel-Curl (stehend)', en: 'Barbell Curl',
+    imgId: 'Barbell_Curl', setup: 'Füße hüftbreit, Untergriff schulterbreit, Ellbogen am Körper, aufrecht.',
+    cues: ['Ellbogen BLEIBEN am Körper', 'Keine Hüftschwung', 'Volle Streckung unten', '2s negativ'],
+    mistakes: ['Ellbogen wandern nach vorn', 'Hüfte schwingt vor', 'Schultern hochziehen'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: 20, unilateral: false, priority: 3
+  },
+  shrug: {
+    variant: 'Schulterheben (Kurzhanteln oder Langhantel)', en: 'Shrug',
+    imgId: 'Dumbbell_Shrug', setup: 'Aufrecht, Gewichte seitlich (oder vor Körper), Kopf neutral, leichte Knie-Beugung.',
+    cues: ['GERADE nach oben ziehen (nicht rollen!)', 'Oben 1s halten', 'Langsam ablassen', 'Volle Dehnung unten'],
+    mistakes: ['Schultern ROLLEN (alte Schule, Gelenk-Stress)', 'Nackenhalten statt anspannen', 'Halber ROM'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: false, priority: 3
+  },
+  plank_side: {
+    variant: 'Seitstütz (Side Plank)', en: 'Side Plank',
+    imgId: 'Side_Bridge', setup: 'Seitlich auf Unterarm, Ellbogen unter Schulter, Körper gerade von Ferse bis Kopf.',
+    cues: ['Hüfte stemmt HOCH', 'Schulter runter (nicht hochziehen)', 'Oberer Arm zur Decke oder auf Hüfte', 'Beide Seiten gleich lang'],
+    mistakes: ['Hüfte sackt ab', 'Auf Ellbogen kippen', 'Schulter hoch'],
+    tempo: 'hold', restSec: 30, plateBar: null, unilateral: true, priority: 2
+  },
+  pushup: {
+    variant: 'Liegestütze (standard)', en: 'Push Up',
+    imgId: 'Pushups', setup: 'Hände schulterbreit (leicht außer) unter Schultern, Körper gerade von Ferse bis Kopf, Core fest.',
+    cues: ['Ellbogen ~45° zum Körper (nicht 90°)', 'Brust zum Boden', 'Hüfte bleibt in Linie', 'Volle Streckung oben'],
+    mistakes: ['Hüfte sackt ab', 'Hüfte zu hoch', 'Halber ROM'],
+    tempo: '2-1-X-1', restSec: 60, plateBar: null, unilateral: false, priority: 2
   }
 };
 
@@ -2583,9 +2705,10 @@ function showExDetail(exId){
   const el=document.getElementById('ex-modal');
   el.innerHTML=`
     <div class="ex-modal-header">
-      <div class="ex-modal-imgs">
-        <img src="${imgBase}0.jpg" loading="lazy" alt="start" onerror="this.style.display='none';this.parentElement.classList.add('empty-imgs')">
-        <img src="${imgBase}1.jpg" loading="lazy" alt="end" onerror="this.style.display='none';this.parentElement.classList.add('empty-imgs')">
+      <div class="ex-anim" id="ex-anim-box">
+        <img src="${imgBase}0.jpg" loading="lazy" alt="Startposition" onerror="this.style.visibility='hidden'">
+        <img src="${imgBase}1.jpg" loading="lazy" alt="Endposition" onerror="this.style.visibility='hidden';const f=this.parentElement;if(!f.querySelector('img[src=&quot;${imgBase}0.jpg&quot;]:not([style*=hidden])'))f.innerHTML='<div class=&quot;ex-anim-fallback&quot;>${(d.variant||'?')[0]}</div>'">
+        <button class="ex-anim-pause" onclick="document.getElementById('ex-anim-box').classList.toggle('paused')" title="Animation pausieren">⏸</button>
       </div>
       <button onclick="closeExModal()" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.6);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;z-index:2">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -2633,6 +2756,10 @@ function showExDetail(exId){
       <div style="margin-bottom:14px">
         ${d.mistakes.map(m=>`<div class="ex-mistake"><div class="ex-cue-icon" style="background:var(--rl);color:var(--red)">✗</div><div style="font-size:13px;line-height:1.5;flex:1;color:var(--sec)">${m}</div></div>`).join('')}
       </div>
+      <a class="btn btn-s btn-full" style="margin-bottom:8px;text-decoration:none" href="https://youtube.com/results?search_query=${encodeURIComponent((d.en||d.variant.split('(')[0].trim())+' proper form tutorial')}" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        Video-Tutorial auf YouTube
+      </a>
       ${ex?`<button class="btn btn-s btn-full" style="margin-bottom:8px" onclick="copyLastWeight('${exId}')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         Gewichte vom letzten Mal übernehmen
