@@ -1821,26 +1821,123 @@ function rate(exId,r) {
   });
 }
 
+// ── SMART METRICS ENGINE (rule-based, always works offline) ─────
+function analyzeExerciseHistory(user, exId, currentIdx){
+  const log=getLog(user);
+  const dates=Object.keys(log).sort();
+  const sessions=[];
+  for(const d of dates){
+    const e=log[d];if(!e?.sets?.[exId])continue;
+    if(e.workoutIndex!=null && e.workoutIndex!==currentIdx)continue;
+    const done=e.sets[exId].filter(s=>s.done);
+    if(!done.length)continue;
+    const maxW=Math.max(...done.map(s=>s.weight||0));
+    const totalReps=done.reduce((a,s)=>a+(s.reps||0),0);
+    const volume=done.reduce((a,s)=>a+(s.weight||0)*(s.reps||0),0);
+    const avgReps=totalReps/done.length;
+    sessions.push({date:d,maxW,volume,avgReps,sets:done.length,rating:e.ratings?.[exId]});
+  }
+  return sessions.slice(-5); // last 5 sessions
+}
+
+function smartAdjustWeight(ex, sets, rating, history){
+  const plannedW=parseFloat(ex.plannedWeight)||0;
+  const plannedReps=parseInt(ex.plannedReps)||0;
+  const completedDone=sets.filter(s=>s.done);
+  const completedCount=completedDone.length;
+  const totalReps=completedDone.reduce((a,s)=>a+(s.reps||0),0);
+  const avgReps=completedCount?totalReps/completedCount:0;
+  const maxW=completedCount?Math.max(...completedDone.map(s=>s.weight||0)):plannedW;
+
+  if(!plannedW||plannedW===0)return {rw:plannedW,dir:'hold',reason:'Körpergewicht/Zeit'};
+
+  const step=plannedW>=50?2.5:plannedW>=20?1.25:0.5;
+  let rw=plannedW,dir='hold',reason='Beibehalten';
+
+  // Stall detection: last 3 sessions same weight, rating 'ok'
+  if(history.length>=3){
+    const lastThree=history.slice(-3);
+    const sameWeight=lastThree.every(s=>Math.abs(s.maxW-plannedW)<0.5);
+    const allOk=lastThree.every(s=>s.rating==='ok'||!s.rating);
+    if(sameWeight && allOk){
+      return {rw:plannedW,dir:'hold',reason:'3 Sessions auf gleichem Gewicht — Deload-Woche (90%) dann +Step empfohlen'};
+    }
+  }
+
+  // Rating-based + performance-aware
+  if(rating==='easy' && completedCount>=ex.plannedSets && avgReps>=plannedReps){
+    // top of rep range → full step
+    rw=plannedW+step;dir='increase';
+    reason=`Alle ${ex.plannedSets} Sätze sauber + leicht bewertet → +${step}kg`;
+  } else if(rating==='easy' && completedCount>=ex.plannedSets){
+    rw=plannedW+step/2;dir='increase';
+    reason=`Leicht bewertet → +${step/2}kg`;
+  } else if(rating==='hard' && avgReps<plannedReps*0.7){
+    rw=Math.max(0,plannedW-step);dir='decrease';
+    reason=`Hart + Reps nicht erreicht → -${step}kg`;
+  } else if(rating==='hard'){
+    reason='Hart bewertet, Reps aber erreicht → stabil';
+  } else if(completedCount<ex.plannedSets){
+    rw=Math.max(0,plannedW-step/2);dir='decrease';
+    reason=`Sätze nicht vollendet → -${step/2}kg`;
+  } else if(rating==='ok' && maxW>plannedW){
+    // User lifted heavier than planned anyway → set new baseline
+    rw=maxW;dir='increase';
+    reason=`Bereits ${maxW}kg gelifted → neues Baseline`;
+  }
+  return {rw:+rw.toFixed(2),dir,reason};
+}
+
 let _aiRunning=false;
 async function runAI() {
   if(_aiRunning)return;_aiRunning=true;
   const plan=getPlan(state.user);const w=currentWkt()||plan.workouts[state.wIdx];
   const btn=document.getElementById('ai-btn');const res=document.getElementById('ai-res');
   btn.innerHTML=`<div class="spinner"></div> KI analysiert...`;btn.disabled=true;res.style.display='none';
-  const exData=w.exercises.map(ex=>({
-    id:ex.id,name:ex.name,
-    plannedSets:ex.sets,plannedReps:ex.reps||ex.duration+'s',
-    plannedWeight:getCW(state.user,ex.id,ex.weight),
-    completedSets:(state.sets[ex.id]||[]).filter(s=>s.done).length,
-    rating:state.ratings[ex.id]||'not_rated',
-    setWeights:(state.sets[ex.id]||[]).map(s=>s.weight),
-    setDetails:(state.sets[ex.id]||[]).filter(s=>s.done).map(s=>`${s.reps}x${s.weight||'BW'}kg${s.side?' ('+s.side+')':''}`).join(', ')
-  }));
-  const sys=`Du bist ein professioneller Kraftsport-Coach. Analysiere das Training präzise und motivierend auf Deutsch. WICHTIG: Wenn du Links/Rechts-Asymmetrien in den Satzdaten siehst (L/R markiert), gehe explizit darauf ein mit konkreten Empfehlungen zum Ausgleich. Antworte AUSSCHLIESSLICH mit validem JSON (keine Backticks). Schema:
-{"summary":"string","adjustments":[{"exerciseId":"string","exerciseName":"string","currentWeight":number,"recommendedWeight":number,"direction":"increase"|"decrease"|"hold","reason":"string"}],"tips":["string","string"],"encouragement":"string"}`;
-  const msg=`Athletenprofil: ${plan.profile?.weight||85}kg, Ziel: ${plan.profile?.goal}, Verletzungshistorie: ${plan.profile?.injuries}
+
+  // STEP 1: Compute rich metrics per exercise (always works)
+  const exData=w.exercises.map(ex=>{
+    const sets=state.sets[ex.id]||[];
+    const history=analyzeExerciseHistory(state.user,ex.id,state.wIdx);
+    const plannedW=getCW(state.user,ex.id,ex.weight);
+    const completedDone=sets.filter(s=>s.done);
+    const maxW=completedDone.length?Math.max(...completedDone.map(s=>s.weight||0)):0;
+    const totalReps=completedDone.reduce((a,s)=>a+(s.reps||0),0);
+    const volume=completedDone.reduce((a,s)=>a+(s.weight||0)*(s.reps||0),0);
+    const rating=state.ratings[ex.id]||'not_rated';
+    const ruleBased=smartAdjustWeight({plannedWeight:plannedW,plannedSets:ex.sets,plannedReps:ex.reps},sets,rating,history);
+    // Trend classification from history
+    let trend='new';
+    if(history.length>=2){
+      const prev=history[history.length-2];
+      if(maxW>prev.maxW)trend='improving';
+      else if(maxW<prev.maxW)trend='declining';
+      else trend='stable';
+    }
+    return {
+      id:ex.id,name:ex.name,plannedSets:ex.sets,plannedReps:ex.reps||ex.duration+'s',
+      plannedWeight:plannedW,completedSets:completedDone.length,rating,
+      maxWeight:maxW,totalReps,volume,trend,
+      setDetails:completedDone.map(s=>`${s.reps}x${s.weight||'BW'}kg${s.side?' ('+s.side+')':''}`).join(', '),
+      history:history.map(h=>`${h.date}: ${h.maxW}kg·${h.sets}Sätze·Vol${Math.round(h.volume)}`).join(' | '),
+      ruleBased
+    };
+  });
+  const totalVolume=Math.round(exData.reduce((a,e)=>a+e.volume,0));
+  const totalDone=exData.reduce((a,e)=>a+e.completedSets,0);
+
+  const sys=`Du bist ein professioneller Kraftsport-Coach mit tiefer Analyse-Kompetenz. Dir werden pro Übung gegeben: aktueller Satz-Verlauf + letzte 5 Session-Historie + ein Rule-based Vorschlag (ruleBased). Deine Aufgabe:
+1) Prüfe den ruleBased-Vorschlag kritisch im Kontext der Historie und überschreibe NUR wenn stark begründet (z.B. Plateaus erkannt, Übertraining-Zeichen, ACL-Rehab-Vorsicht bei user alex)
+2) Bei L/R-Asymmetrien (L/R in setDetails) → konkrete Balance-Empfehlung
+3) Bei Trend "declining" 2+ Sessions → Deload oder Technik-Check empfehlen
+4) Bei Trend "improving" 3+ Sessions → Progression sicher halten
+Antworte AUSSCHLIESSLICH mit validem JSON, KEINE Markdown. Schema:
+{"summary":"string (max 2 Sätze, auf Deutsch, spezifisch auf Performance bezogen)","adjustments":[{"exerciseId":"string","exerciseName":"string","currentWeight":number,"recommendedWeight":number,"direction":"increase|decrease|hold","reason":"string (warum du den ruleBased overriden hast ODER bestätigst)"}],"tips":["string (konkret, spezifisch)","string"],"encouragement":"string (ein motivierender Satz)"}`;
+  const msg=`Nutzer: ${state.user} | Profil: ${plan.profile?.weight||85}kg, Ziel: ${plan.profile?.goal}, Verletzungen: ${plan.profile?.injuries||'keine'}
 Training: ${w.name} ${w.label} — ${w.subtitle}
-Daten: ${JSON.stringify(exData)}`;
+Session-Stats: ${totalDone} Sätze · ${totalVolume}kg Gesamtvolumen
+Übungen mit Historie & Rule-Vorschlag:
+${JSON.stringify(exData,null,1)}`;
   try {
     const r=await fetch(`${SB.url}/functions/v1/ai-coach`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({max_tokens:1000,system:sys,messages:[{role:'user',content:msg}]})});
     const data=await r.json();const raw=data.content[0].text.replace(/```json|```/g,'').trim();const p=JSON.parse(raw);
@@ -1873,16 +1970,14 @@ Daten: ${JSON.stringify(exData)}`;
     showToast('Training gespeichert · Gewichte aktualisiert');loadDashboard();_aiRunning=false;
   } catch(err) {
     console.error(err);
-    // Lokaler Fallback: Gewichte basierend auf Rating anpassen
+    // Lokaler Fallback: Rich rule engine (bereits berechnet in exData.ruleBased)
     const adjustments=[];
     exData.forEach(ex=>{
-      if(!ex.plannedWeight||ex.plannedWeight===0)return;
-      const cw=parseFloat(ex.plannedWeight)||0;
-      let rw=cw,dir='hold',reason='Beibehalten';
-      const step=cw>=40?2.5:cw>=10?1.25:0.5;
-      if(ex.rating==='easy'&&ex.completedSets>=ex.plannedSets){rw=cw+step;dir='increase';reason='Alle Sätze geschafft, als leicht bewertet';}
-      else if(ex.rating==='hard'){rw=Math.max(0,cw-step);dir='decrease';reason='Als zu schwer bewertet';}
-      if(dir!=='hold'){adjustments.push({exerciseId:ex.id,exerciseName:ex.name,currentWeight:cw,recommendedWeight:rw,direction:dir,reason});saveW(state.user,ex.id,rw);}
+      const rb=ex.ruleBased;
+      if(rb.dir!=='hold'){
+        adjustments.push({exerciseId:ex.id,exerciseName:ex.name,currentWeight:ex.plannedWeight,recommendedWeight:rb.rw,direction:rb.dir,reason:rb.reason});
+        saveW(state.user,ex.id,rb.rw);
+      }
     });
     const log=getLog(state.user);if(log[today()]){log[today()].completed=true;log[today()].ratings=state.ratings;saveLog(state.user,log);if(hasSb())sbSaveEntry(state.user,today(),log[today()]);}
     res.style.display='block';
